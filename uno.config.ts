@@ -242,6 +242,10 @@ export default defineConfig({
       warn: true,
       collections: {
         ...customIconCollection,
+        // Ensure these icon sets resolve locally (no network fetch)
+        ph: () => import('@iconify-json/ph/icons.json').then((m) => (m as any).default || (m as any)),
+        'svg-spinners': () =>
+          import('@iconify-json/svg-spinners/icons.json').then((m) => (m as any).default || (m as any)),
       },
       unit: 'em',
     }),
