@@ -1,5 +1,4 @@
 import { experimental_createMCPClient, type ToolSet, type UIMessage, convertToModelMessages } from 'ai';
-import { Experimental_StdioMCPTransport } from 'ai/mcp-stdio';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { z } from 'zod/v3';
 import type { ToolCallAnnotation } from '~/types/context';
@@ -193,7 +192,36 @@ export class MCPService {
       `Creating STDIO client for '${serverName}' with command: '${config.command}' ${config.args?.join(' ') || ''}`,
     );
 
-    const client = await experimental_createMCPClient({ transport: new Experimental_StdioMCPTransport(config) });
+    // Guard: STDIO transport is only supported in Node-like environments.
+    const isNodeLike = () => {
+      try {
+        // Avoid relying on polyfilled process by checking multiple hints
+        return (
+          typeof process !== 'undefined' &&
+          !!(process as any).versions &&
+          !!(process as any).versions.node &&
+          (process as any).release?.name === 'node'
+        );
+      } catch {
+        return false;
+      }
+    };
+
+    if (!isNodeLike()) {
+      throw new Error('MCP stdio transport is not supported in this runtime');
+    }
+
+    // Dynamically import to avoid bundling 'ai/mcp-stdio' into Cloudflare Worker build
+    const modulePath = ['ai', 'mcp-stdio'].join('/');
+
+    // Alias to satisfy naming-convention rule (no PascalCase variables)
+    const { Experimental_StdioMCPTransport: stdioMcpTransportCtor } = (await import(
+      /* @vite-ignore */ modulePath
+    )) as any;
+
+    const client = await experimental_createMCPClient({
+      transport: new stdioMcpTransportCtor(config),
+    });
 
     return Object.assign(client, { serverName });
   }

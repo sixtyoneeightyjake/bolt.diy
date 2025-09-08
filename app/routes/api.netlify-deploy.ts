@@ -1,6 +1,21 @@
 import { type ActionFunctionArgs, json } from '@remix-run/cloudflare';
-import crypto from 'crypto';
 import type { NetlifySiteInfo } from '~/types/netlify';
+
+// Use Web Crypto API (available in Cloudflare Workers) instead of Node 'crypto'
+async function sha1Hex(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+  const bytes = new Uint8Array(hashBuffer);
+  let hex = '';
+
+  for (let i = 0; i < bytes.length; i++) {
+    const h = bytes[i].toString(16);
+    hex += h.length === 1 ? '0' + h : h;
+  }
+
+  return hex;
+}
 
 interface DeployRequestBody {
   siteId?: string;
@@ -104,7 +119,7 @@ export async function action({ request }: ActionFunctionArgs) {
     for (const [filePath, content] of Object.entries(files)) {
       // Ensure file path starts with a forward slash
       const normalizedPath = filePath.startsWith('/') ? filePath : '/' + filePath;
-      const hash = crypto.createHash('sha1').update(content).digest('hex');
+      const hash = await sha1Hex(content);
       fileDigests[normalizedPath] = hash;
     }
 
