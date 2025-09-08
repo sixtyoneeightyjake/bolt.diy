@@ -1,9 +1,9 @@
 import ignore from 'ignore';
 import { useGit } from '~/lib/hooks/useGit';
-import type { Message } from 'ai';
 import { detectProjectCommands, createCommandsMessage, escapeBoltTags } from '~/utils/projectCommands';
+import type { ExtendedUIMessage } from '~/types/ExtendedUIMessage';
 import { generateId } from '~/utils/fileUtils';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { LoadingOverlay } from '~/components/ui/LoadingOverlay';
 
@@ -16,6 +16,10 @@ import { X, Github, GitBranch } from 'lucide-react';
 // Import GitLab and GitHub connections for unified repository access
 import GitLabConnection from '~/components/@settings/tabs/connections/gitlab/GitLabConnection';
 import GitHubConnection from '~/components/@settings/tabs/connections/github/GitHubConnection';
+import { useAuth } from '@clerk/remix';
+import { useStore } from '@nanostores/react';
+import { githubConnectionAtom, githubConnectionStore, isGitHubConnected } from '~/lib/stores/githubConnection';
+import { SIGN_IN_URL } from '~/utils/auth.config';
 
 const IGNORE_PATTERNS = [
   'node_modules/**',
@@ -45,7 +49,7 @@ const MAX_TOTAL_SIZE = 500 * 1024; // 500KB total limit
 
 interface GitCloneButtonProps {
   className?: string;
-  importChat?: (description: string, messages: Message[], metadata?: IChatMetadata) => Promise<void>;
+  importChat?: (description: string, messages: ExtendedUIMessage[], metadata?: IChatMetadata) => Promise<void>;
 }
 
 export default function GitCloneButton({ importChat, className }: GitCloneButtonProps) {
@@ -53,6 +57,12 @@ export default function GitCloneButton({ importChat, className }: GitCloneButton
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<'github' | 'gitlab' | null>(null);
+  const { getToken, isSignedIn } = useAuth();
+  const connected = useStore(isGitHubConnected);
+  const connection = useStore(githubConnectionAtom);
+  const [attemptedImport, setAttemptedImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const handleClone = async (repoUrl: string) => {
     if (!ready) {
@@ -121,9 +131,7 @@ export default function GitCloneButton({ importChat, className }: GitCloneButton
         const commands = await detectProjectCommands(fileContents);
         const commandsMessage = createCommandsMessage(commands);
 
-        const filesMessage: Message = {
-          role: 'assistant',
-          content: `Cloning the repo ${repoUrl} into ${workdir}
+        const filesText = `Cloning the repo ${repoUrl} into ${workdir}
 ${
   skippedFiles.length > 0
     ? `\nSkipped files (${skippedFiles.length}):
@@ -140,7 +148,10 @@ ${escapeBoltTags(file.content)}
 </boltAction>`,
   )
   .join('\n')}
-</boltArtifact>`,
+</boltArtifact>`;
+        const filesMessage: ExtendedUIMessage = {
+          role: 'assistant',
+          parts: [{ type: 'text', text: filesText }] as any,
           id: generateId(),
           createdAt: new Date(),
         };
@@ -160,6 +171,131 @@ ${escapeBoltTags(file.content)}
       setLoading(false);
     }
   };
+
+  const buildSignInUrl = () => {
+    if (typeof window === 'undefined') {
+      return SIGN_IN_URL;
+    }
+
+    const url = new URL(SIGN_IN_URL);
+    url.searchParams.set('redirect_url', `${window.location.origin}/`);
+
+    return url.toString();
+  };
+
+  const buildManageConnectionsUrl = () => {
+    try {
+      const base = new URL(SIGN_IN_URL);
+
+      // Hosted Clerk typically exposes user profile at /user
+      base.pathname = '/user';
+      base.searchParams.set('redirect_url', typeof window !== 'undefined' ? `${window.location.origin}/` : '/');
+
+      return base.toString();
+    } catch {
+      return SIGN_IN_URL;
+    }
+  };
+
+  const handleImportFromOAuth = async () => {
+    setImportError(null);
+    setImporting(true);
+
+    try {
+      if (!isSignedIn) {
+        if (typeof window !== 'undefined') {
+          window.location.href = buildSignInUrl();
+        }
+
+        return;
+      }
+
+      const jwt = await getToken();
+
+      if (!jwt) {
+        setImportError('Unable to authenticate. Please sign in again.');
+        return;
+      }
+
+      const res = await fetch('/api.github-import-token', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as any;
+        throw new Error(data?.error || `Server error ${res.status}`);
+      }
+
+      const data = (await res.json()) as { token?: string };
+
+      if (!data.token) {
+        throw new Error('No GitHub OAuth token found for this user. Try signing in with GitHub.');
+      }
+
+      await githubConnectionStore.connect(data.token, 'fine-grained');
+      toast.success('Connected to GitHub via OAuth');
+    } catch (e: any) {
+      setImportError(e?.message || 'Failed to import token');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Auto-import GitHub OAuth token when the GitHub dialog opens and user is signed in
+  useEffect(() => {
+    const run = async () => {
+      if (!isDialogOpen || selectedProvider !== 'github' || attemptedImport) {
+        return;
+      }
+
+      setAttemptedImport(true);
+
+      if (!isSignedIn) {
+        // Redirect to sign-in with redirect back
+        if (typeof window !== 'undefined') {
+          const url = new URL(SIGN_IN_URL);
+          url.searchParams.set('redirect_url', `${window.location.origin}/`);
+          window.location.href = url.toString();
+        }
+
+        return;
+      }
+
+      if (connected && connection?.token) {
+        return;
+      } // Already connected
+
+      try {
+        const jwt = await getToken();
+
+        if (!jwt) {
+          return;
+        }
+
+        const res = await fetch('/api.github-import-token', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
+
+        if (!res.ok) {
+          return;
+        }
+
+        const data = (await res.json()) as any as { token?: string; error?: string };
+
+        if (!data.token) {
+          return;
+        }
+
+        await githubConnectionStore.connect(data.token, 'fine-grained');
+        toast.success('Connected to GitHub via OAuth');
+      } catch {
+        // Silent fail; UI still offers manual connect
+      }
+    };
+    run();
+  }, [isDialogOpen, selectedProvider, attemptedImport, isSignedIn, connected]);
 
   return (
     <>
@@ -280,6 +416,40 @@ ${escapeBoltTags(file.content)}
             </div>
 
             <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+              {!connected && (
+                <div className="mb-4 p-4 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-sm text-bolt-elements-textSecondary">
+                      <div className="font-medium text-bolt-elements-textPrimary mb-1">Use your GitHub OAuth token</div>
+                      <div>
+                        We can import your GitHub OAuth access token from your Clerk session. This avoids creating a
+                        personal access token.
+                      </div>
+                      {importError && <div className="mt-2 text-bolt-elements-textDanger">{importError}</div>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isSignedIn ? (
+                        <>
+                          <Button variant="outline" size="sm" onClick={handleImportFromOAuth} disabled={importing}>
+                            {importing ? 'Importing…' : 'Import OAuth Token'}
+                          </Button>
+                          <a href={buildManageConnectionsUrl()} target="_blank" rel="noreferrer">
+                            <Button variant="outline" size="sm">
+                              Manage connections
+                            </Button>
+                          </a>
+                        </>
+                      ) : (
+                        <a href={buildSignInUrl()}>
+                          <Button variant="outline" size="sm">
+                            Sign in to import
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
               <GitHubConnection onCloneRepository={handleClone} />
             </div>
           </div>

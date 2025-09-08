@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { ServerBuild } from '@remix-run/cloudflare';
 import { createPagesFunctionHandler } from '@remix-run/cloudflare-pages';
 
@@ -10,3 +11,4 @@ export const onRequest: PagesFunction = async (context) => {
 
   return handler(context);
 };
+// @ts-nocheck

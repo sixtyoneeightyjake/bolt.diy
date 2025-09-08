@@ -1,4 +1,4 @@
-import type { Message } from 'ai';
+import type { UIMessage } from 'ai';
 import { Fragment } from 'react';
 import { classNames } from '~/utils/classNames';
 import { AssistantMessage } from './AssistantMessage';
@@ -15,8 +15,8 @@ interface MessagesProps {
   id?: string;
   className?: string;
   isStreaming?: boolean;
-  messages?: Message[];
-  append?: (message: Message) => void;
+  messages?: UIMessage[];
+  append?: (message: ExtendedUIMessage) => void;
   chatMode?: 'discuss' | 'build';
   setChatMode?: (mode: 'discuss' | 'build') => void;
   model?: string;
@@ -49,14 +49,28 @@ export const Messages = forwardRef<HTMLDivElement, MessagesProps>(
       }
     };
 
+    // helper to extract text from parts (v5 UI)
+    const getTextContent = (message: UIMessage) => {
+      if (Array.isArray(message.parts)) {
+        return message.parts
+          .filter((p: any) => p?.type === 'text')
+          .map((p: any) => (typeof (p as any).text === 'string' ? (p as any).text : ''))
+          .join('');
+      }
+
+      // fallback for any legacy content
+      return (message as any).content || '';
+    };
+
     return (
       <div id={id} className={props.className} ref={ref}>
         {messages.length > 0
           ? messages.map((message, index) => {
-              const { role, content, id: messageId, annotations, parts } = message;
+              const { role, id: messageId, parts } = message;
+              const content = getTextContent(message);
               const isUserMessage = role === 'user';
               const isFirst = index === 0;
-              const isHidden = annotations?.includes('hidden');
+              const isHidden = false; // annotations removed in v5; hide handling disabled
 
               if (isHidden) {
                 return <Fragment key={index} />;
@@ -71,11 +85,10 @@ export const Messages = forwardRef<HTMLDivElement, MessagesProps>(
                 >
                   <div className="grid grid-col-1 w-full">
                     {isUserMessage ? (
-                      <UserMessage content={content} parts={parts} />
+                      <UserMessage content={content} parts={parts as any} />
                     ) : (
                       <AssistantMessage
                         content={content}
-                        annotations={message.annotations}
                         messageId={messageId}
                         onRewind={handleRewind}
                         onFork={handleFork}
@@ -84,7 +97,7 @@ export const Messages = forwardRef<HTMLDivElement, MessagesProps>(
                         setChatMode={props.setChatMode}
                         model={props.model}
                         provider={props.provider}
-                        parts={parts}
+                        parts={parts as any}
                         addToolResult={props.addToolResult}
                       />
                     )}

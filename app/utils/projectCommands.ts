@@ -1,5 +1,5 @@
-import type { Message } from 'ai';
 import { generateId } from './fileUtils';
+import type { ExtendedUIMessage } from '~/types/ExtendedUIMessage';
 
 export interface ProjectCommands {
   type: string;
@@ -63,7 +63,7 @@ export async function detectProjectCommands(files: FileContent[]): Promise<Proje
   return { type: '', setupCommand: '', followupMessage: '' };
 }
 
-export function createCommandsMessage(commands: ProjectCommands): Message | null {
+export function createCommandsMessage(commands: ProjectCommands): ExtendedUIMessage | null {
   if (!commands.setupCommand && !commands.startCommand) {
     return null;
   }
@@ -83,11 +83,16 @@ export function createCommandsMessage(commands: ProjectCommands): Message | null
 
   return {
     role: 'assistant',
-    content: `
+    parts: [
+      {
+        type: 'text',
+        text: `
 ${commands.followupMessage ? `\n\n${commands.followupMessage}` : ''}
 <boltArtifact id="project-setup" title="Project Setup">
 ${commandString}
 </boltArtifact>`,
+      },
+    ],
     id: generateId(),
     createdAt: new Date(),
   };

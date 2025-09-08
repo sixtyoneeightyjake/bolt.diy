@@ -46,7 +46,7 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Hardware Requirements Overview */}
-      <Card className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 shadow-sm">
+      <Card className="bg-gradient-to-r from-red-600/10 to-red-900/10 border border-red-600/20 shadow-sm">
         <CardContent className="p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
@@ -87,8 +87,8 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
       <Card className="bg-bolt-elements-background-depth-2 shadow-sm">
         <CardHeader className="pb-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/20 flex items-center justify-center ring-1 ring-purple-500/30">
-              <Server className="w-6 h-6 text-purple-500" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/20 to-red-700/20 flex items-center justify-center ring-1 ring-red-600/30">
+              <Server className="w-6 h-6 text-red-600" />
             </div>
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-bolt-elements-textPrimary">Ollama Setup</h3>
@@ -96,9 +96,7 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
                 Most popular choice for running open-source models locally with desktop app
               </p>
             </div>
-            <span className="px-3 py-1 bg-purple-500/10 text-purple-500 text-xs font-medium rounded-full">
-              Recommended
-            </span>
+            <span className="px-3 py-1 bg-red-600/10 text-red-600 text-xs font-medium rounded-full">Recommended</span>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -127,7 +125,7 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full bg-gradient-to-r from-purple-500/10 to-purple-600/10 hover:from-purple-500/20 hover:to-purple-600/20 border-purple-500/30 hover:border-purple-500/50 transition-all duration-300 gap-2 group shadow-sm hover:shadow-lg hover:shadow-purple-500/20 font-medium"
+                    className="w-full bg-gradient-to-r from-red-600/10 to-red-700/10 hover:from-red-600/20 hover:to-red-700/20 border-red-600/30 hover:border-red-600/50 transition-all duration-300 gap-2 group shadow-sm hover:shadow-lg hover:shadow-red-600/20 font-medium"
                     _asChild
                   >
                     <a

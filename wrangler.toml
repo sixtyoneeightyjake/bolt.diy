@@ -4,3 +4,8 @@ compatibility_flags = ["nodejs_compat"]
 compatibility_date = "2025-03-28"
 pages_build_output_dir = "./build/client"
 send_metrics = false
+
+[vars]
+# Clerk keys (set real values in your environment / deployment)
+CLERK_PUBLISHABLE_KEY = ""
+CLERK_SECRET_KEY = ""

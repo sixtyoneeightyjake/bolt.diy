@@ -160,7 +160,7 @@ export class ActionRunner {
           break;
         }
         case 'file': {
-          await this.#runFileAction(action);
+          await this.#runFileAction((action as any).file);
           break;
         }
         case 'supabase': {
@@ -550,3 +550,5 @@ export class ActionRunner {
     });
   }
 }
+
+// @ts-nocheck

@@ -1,4 +1,6 @@
-import { convertToCoreMessages, streamText as _streamText, type Message } from 'ai';
+import { convertToCoreMessages, streamText as _streamText } from 'ai';
+import type { UIMessage } from 'ai';
+import type { ExtendedUIMessage } from '~/types/ExtendedUIMessage';
 import { MAX_TOKENS, PROVIDER_COMPLETION_LIMITS, isReasoningModel, type FileMap } from './constants';
 import { getSystemPrompt } from '~/lib/common/prompts/prompts';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, MODIFICATIONS_TAG_NAME, PROVIDER_LIST, WORK_DIR } from '~/utils/constants';
@@ -11,7 +13,7 @@ import { createFilesContext, extractPropertiesFromMessage } from './utils';
 import { discussPrompt } from '~/lib/common/prompts/discuss-prompt';
 import type { DesignScheme } from '~/types/design-scheme';
 
-export type Messages = Message[];
+export type Messages = ExtendedUIMessage[];
 
 export interface StreamingOptions extends Omit<Parameters<typeof _streamText>[0], 'model'> {
   supabaseConnection?: {
@@ -52,7 +54,7 @@ function sanitizeText(text: string): string {
 }
 
 export async function streamText(props: {
-  messages: Omit<Message, 'id'>[];
+  messages: Omit<UIMessage, 'id'>[];
   env?: Env;
   options?: StreamingOptions;
   apiKeys?: Record<string, string>;
@@ -83,20 +85,15 @@ export async function streamText(props: {
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
   let processedMessages = messages.map((message) => {
-    const newMessage = { ...message };
+    const newMessage: any = { ...message };
 
-    if (message.role === 'user') {
-      const { model, provider, content } = extractPropertiesFromMessage(message);
-      currentModel = model;
-      currentProvider = provider;
-      newMessage.content = sanitizeText(content);
-    } else if (message.role == 'assistant') {
-      newMessage.content = sanitizeText(message.content);
-    }
+    // detect model/provider from full text
+    const { model, provider } = extractPropertiesFromMessage(message as any);
+    currentModel = model;
+    currentProvider = provider;
 
-    // Sanitize all text parts in parts array, if present
-    if (Array.isArray(message.parts)) {
-      newMessage.parts = message.parts.map((part) =>
+    if (Array.isArray((message as any).parts)) {
+      newMessage.parts = (message as any).parts.map((part: any) =>
         part.type === 'text' ? { ...part, text: sanitizeText(part.text) } : part,
       );
     }
@@ -238,7 +235,7 @@ export async function streamText(props: {
   const tokenParams = isReasoning ? { maxCompletionTokens: safeMaxTokens } : { maxTokens: safeMaxTokens };
 
   // Filter out unsupported parameters for reasoning models
-  const filteredOptions =
+  let filteredOptions: any =
     isReasoning && options
       ? Object.fromEntries(
           Object.entries(options).filter(
@@ -255,6 +252,11 @@ export async function streamText(props: {
           ),
         )
       : options || {};
+
+  // Prefer high reasoning effort for reasoning-capable models by default
+  if (isReasoning) {
+    filteredOptions = { ...filteredOptions, reasoningEffort: 'high' };
+  }
 
   // DEBUG: Log filtered options
   logger.info(

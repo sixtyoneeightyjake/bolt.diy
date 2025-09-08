@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react';
-import type { LinksFunction } from '@remix-run/cloudflare';
+import type { LinksFunction, LoaderFunctionArgs } from '@remix-run/cloudflare';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
 import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
@@ -9,6 +9,9 @@ import { useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ClientOnly } from 'remix-utils/client-only';
+import { ClerkApp } from '@clerk/remix';
+import { rootAuthLoader } from '@clerk/remix/ssr.server';
+import { SIGN_IN_URL, SIGN_UP_URL } from '~/utils/auth.config';
 
 import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css?url';
 import globalStyles from './styles/index.scss?url';
@@ -41,14 +44,18 @@ export const links: LinksFunction = () => [
   },
 ];
 
+// Initialize Clerk SSR auth (Cloudflare-compatible)
+export const loader = (args: LoaderFunctionArgs) => rootAuthLoader(args);
+
 const inlineThemeCode = stripIndents`
   setTutorialKitTheme();
 
   function setTutorialKitTheme() {
     let theme = localStorage.getItem('bolt_theme');
 
+    // Default to dark to reflect MojoCode branding (black background)
     if (!theme) {
-      theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      theme = 'dark';
     }
 
     document.querySelector('html')?.setAttribute('data-theme', theme);
@@ -83,7 +90,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 import { logStore } from './lib/stores/logs';
 
-export default function App() {
+function App() {
   const theme = useStore(themeStore);
 
   useEffect(() => {
@@ -101,3 +108,16 @@ export default function App() {
     </Layout>
   );
 }
+
+// Wrap the Remix app with Clerk provider
+export default ClerkApp(App, {
+  signInUrl: SIGN_IN_URL,
+  signUpUrl: SIGN_UP_URL,
+  afterSignInUrl: '/',
+  afterSignUpUrl: '/',
+});
+
+/*
+ * Provide Clerk-aware error boundary
+ * Use Remix's default ErrorBoundary or add a custom one if desired
+ */

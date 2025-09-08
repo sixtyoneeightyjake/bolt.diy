@@ -5,8 +5,9 @@ type ParameterProperty = {
   description?: string;
 };
 
-type ToolParameters = {
-  jsonSchema: {
+// Extend Tool type to include inputSchema for MCP tools
+type MCPTool = Tool & {
+  inputSchema?: {
     properties?: Record<string, ParameterProperty>;
     required?: string[];
   };
@@ -14,7 +15,7 @@ type ToolParameters = {
 
 type McpToolProps = {
   toolName: string;
-  toolSchema: Tool;
+  toolSchema: MCPTool;
 };
 
 export default function McpServerListItem({ toolName, toolSchema }: McpToolProps) {
@@ -22,8 +23,8 @@ export default function McpServerListItem({ toolName, toolSchema }: McpToolProps
     return null;
   }
 
-  const parameters = (toolSchema.parameters as ToolParameters)?.jsonSchema.properties || {};
-  const requiredParams = (toolSchema.parameters as ToolParameters)?.jsonSchema.required || [];
+  const parameters = toolSchema.inputSchema?.properties || {};
+  const requiredParams = toolSchema.inputSchema?.required || [];
 
   return (
     <div className="mt-2 ml-4 p-3 rounded-md bg-bolt-elements-background-depth-2 text-xs">
@@ -47,17 +48,16 @@ export default function McpServerListItem({ toolName, toolSchema }: McpToolProps
                         <span className="text-red-600 dark:text-red-400 ml-1">*</span>
                       )}
                     </span>
-
-                    <span className="mx-2 text-bolt-elements-textSecondary">•</span>
-
-                    <div className="flex-1">
-                      {paramDetails.type && (
-                        <span className="text-bolt-elements-textSecondary italic">{paramDetails.type}</span>
-                      )}
-                      {paramDetails.description && (
-                        <div className="mt-0.5 text-bolt-elements-textSecondary">{paramDetails.description}</div>
-                      )}
+                  </div>
+                  <div className="ml-2 mt-0.5 text-bolt-elements-textSecondary">
+                    <div className="text-xs">
+                      <span className="font-medium">Type:</span> {paramDetails.type || 'unknown'}
                     </div>
+                    {paramDetails.description && (
+                      <div className="text-xs mt-1">
+                        <span className="font-medium">Description:</span> {paramDetails.description}
+                      </div>
+                    )}
                   </div>
                 </li>
               ))}

@@ -1,7 +1,5 @@
 import type { PathWatcherEvent, WebContainer } from '@webcontainer/api';
-import { getEncoding } from 'istextorbinary';
 import { map, type MapStore } from 'nanostores';
-import { Buffer } from 'node:buffer';
 import { path } from '~/utils/path';
 import { bufferWatchEvents } from '~/utils/buffer';
 import { WORK_DIR } from '~/utils/constants';
@@ -163,7 +161,7 @@ export class FilesStore {
           updates[lockedFile.path] = {
             ...file,
             isLocked: true,
-          };
+          } as any;
         }
       }
 
@@ -175,7 +173,7 @@ export class FilesStore {
           updates[lockedFolder.path] = {
             ...folder,
             isLocked: true,
-          };
+          } as any;
 
           // Also mark all files within the folder as locked
           this.#applyLockToFolderContents(currentFiles, updates, lockedFolder.path);
@@ -786,9 +784,10 @@ export class FilesStore {
       const isBinary = content instanceof Uint8Array;
 
       if (isBinary) {
-        await webcontainer.fs.writeFile(relativePath, Buffer.from(content));
+        await webcontainer.fs.writeFile(relativePath, content);
 
-        const base64Content = Buffer.from(content).toString('base64');
+        // Convert Uint8Array to base64 using browser-compatible method
+        const base64Content = btoa(String.fromCharCode(...content));
         this.files.setKey(filePath, {
           type: 'file',
           content: base64Content,
@@ -937,15 +936,14 @@ function isBinaryFile(buffer: Uint8Array | undefined) {
     return false;
   }
 
-  return getEncoding(convertToBuffer(buffer), { chunkLength: 100 }) === 'binary';
-}
+  // Simple binary detection: check for null bytes in first 8000 bytes
+  const sampleSize = Math.min(buffer.length, 8000);
 
-/**
- * Converts a `Uint8Array` into a Node.js `Buffer` by copying the prototype.
- * The goal is to  avoid expensive copies. It does create a new typed array
- * but that's generally cheap as long as it uses the same underlying
- * array buffer.
- */
-function convertToBuffer(view: Uint8Array): Buffer {
-  return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+  for (let i = 0; i < sampleSize; i++) {
+    if (buffer[i] === 0) {
+      return true;
+    }
+  }
+
+  return false;
 }

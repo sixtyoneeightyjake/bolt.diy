@@ -1,4 +1,6 @@
-import { generateText, type CoreTool, type GenerateTextResult, type Message } from 'ai';
+import { generateText } from 'ai';
+import { isReasoningModel } from './constants';
+import type { ExtendedUIMessage } from '~/types/ExtendedUIMessage';
 import type { IProviderSetting } from '~/types/model';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROVIDER_LIST } from '~/utils/constants';
 import { extractCurrentContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
@@ -8,35 +10,39 @@ import { LLMManager } from '~/lib/modules/llm/manager';
 const logger = createScopedLogger('create-summary');
 
 export async function createSummary(props: {
-  messages: Message[];
+  messages: ExtendedUIMessage[];
   env?: Env;
   apiKeys?: Record<string, string>;
   providerSettings?: Record<string, IProviderSetting>;
   promptId?: string;
   contextOptimization?: boolean;
-  onFinish?: (resp: GenerateTextResult<Record<string, CoreTool<any, any>>, never>) => void;
+  onFinish?: (resp: any) => void;
 }) {
   const { messages, env: serverEnv, apiKeys, providerSettings, onFinish } = props;
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
   const processedMessages = messages.map((message) => {
-    if (message.role === 'user') {
-      const { model, provider, content } = extractPropertiesFromMessage(message);
-      currentModel = model;
-      currentProvider = provider;
+    const { model, provider } = extractPropertiesFromMessage(message as any);
+    currentModel = model;
+    currentProvider = provider;
 
-      return { ...message, content };
-    } else if (message.role == 'assistant') {
-      let content = message.content;
-
-      content = simplifyBoltActions(content);
-      content = content.replace(/<div class=\\"__boltThought__\\">.*?<\/div>/s, '');
-      content = content.replace(/<think>.*?<\/think>/s, '');
-
-      return { ...message, content };
+    if (Array.isArray((message as any).parts)) {
+      return {
+        ...message,
+        parts: (message as any).parts.map((p: any) =>
+          p.type === 'text'
+            ? {
+                ...p,
+                text: simplifyBoltActions(p.text || '')
+                  .replace(/<div class=\\"__boltThought__\\">.*?<\/div>/s, '')
+                  .replace(/<think>.*?<\/think>/s, ''),
+              }
+            : p,
+        ),
+      } as any;
     }
 
-    return message;
+    return message as any;
   });
 
   const provider = PROVIDER_LIST.find((p) => p.name === currentProvider) || DEFAULT_PROVIDER;
@@ -94,12 +100,18 @@ ${summary.summary}`;
 
   logger.debug('Sliced Messages:', slicedMessages.length);
 
-  const extractTextContent = (message: Message) =>
-    Array.isArray(message.content)
-      ? (message.content.find((item) => item.type === 'text')?.text as string) || ''
-      : message.content;
+  const extractTextContent = (message: any) => {
+    if (!message.parts || message.parts.length === 0) {
+      return '';
+    }
+
+    const textPart = message.parts.find((part: any) => part.type === 'text');
+
+    return textPart?.text || '';
+  };
 
   // select files from the list of code file from the project that might be useful for the current request from the user
+  const isReasoning = isReasoningModel(modelDetails.name);
   const resp = await generateText({
     system: `
         You are a software engineer. You are working on a project. you need to summarize the work till now and provide a summary of the chat till now.
@@ -185,6 +197,7 @@ Please provide a summary of the chat till now including the hitorical summary of
       apiKeys,
       providerSettings,
     }),
+    ...(isReasoning ? { reasoningEffort: 'high', temperature: 1 } : {}),
   });
 
   const response = resp.text;

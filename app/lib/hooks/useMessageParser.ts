@@ -1,4 +1,4 @@
-import type { Message } from 'ai';
+import type { UIMessage } from 'ai';
 import { useCallback, useState } from 'react';
 import { EnhancedStreamingMessageParser } from '~/lib/runtime/enhanced-message-parser';
 import { workbenchStore } from '~/lib/stores/workbench';
@@ -42,15 +42,25 @@ const messageParser = new EnhancedStreamingMessageParser({
     },
   },
 });
-const extractTextContent = (message: Message) =>
-  Array.isArray(message.content)
-    ? (message.content.find((item) => item.type === 'text')?.text as string) || ''
-    : message.content;
+const extractTextContent = (message: UIMessage) => {
+  if (Array.isArray((message as any).parts)) {
+    return (message as any).parts
+      .filter((p: any) => p?.type === 'text')
+      .map((p: any) => (typeof p.text === 'string' ? p.text : ''))
+      .join('') as string;
+  }
+
+  const content = (message as any).content;
+
+  return Array.isArray(content)
+    ? (content.find((item: any) => item.type === 'text')?.text as string) || ''
+    : (content as string);
+};
 
 export function useMessageParser() {
   const [parsedMessages, setParsedMessages] = useState<{ [key: number]: string }>({});
 
-  const parseMessages = useCallback((messages: Message[], isLoading: boolean) => {
+  const parseMessages = useCallback((messages: UIMessage[], isLoading: boolean) => {
     let reset = false;
 
     if (import.meta.env.DEV && !isLoading) {

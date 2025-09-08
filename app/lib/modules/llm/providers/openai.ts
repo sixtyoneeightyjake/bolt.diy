@@ -1,7 +1,7 @@
 import { BaseProvider } from '~/lib/modules/llm/base-provider';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import type { IProviderSetting } from '~/types/model';
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
 export default class OpenAIProvider extends BaseProvider {
@@ -13,41 +13,11 @@ export default class OpenAIProvider extends BaseProvider {
   };
 
   staticModels: ModelInfo[] = [
-    /*
-     * Essential fallback models - only the most stable/reliable ones
-     * GPT-4o: 128k context, 4k standard output (64k with long output mode)
-     */
-    { name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI', maxTokenAllowed: 128000, maxCompletionTokens: 4096 },
+    // gpt-5 (reasoning): high-quality default
+    { name: 'gpt-5', label: 'GPT‑5', provider: 'OpenAI', maxTokenAllowed: 128000, maxCompletionTokens: 32000 },
 
-    // GPT-4o Mini: 128k context, cost-effective alternative
-    {
-      name: 'gpt-4o-mini',
-      label: 'GPT-4o Mini',
-      provider: 'OpenAI',
-      maxTokenAllowed: 128000,
-      maxCompletionTokens: 4096,
-    },
-
-    // GPT-3.5-turbo: 16k context, fast and cost-effective
-    {
-      name: 'gpt-3.5-turbo',
-      label: 'GPT-3.5 Turbo',
-      provider: 'OpenAI',
-      maxTokenAllowed: 16000,
-      maxCompletionTokens: 4096,
-    },
-
-    // o1-preview: 128k context, 32k output limit (reasoning model)
-    {
-      name: 'o1-preview',
-      label: 'o1-preview',
-      provider: 'OpenAI',
-      maxTokenAllowed: 128000,
-      maxCompletionTokens: 32000,
-    },
-
-    // o1-mini: 128k context, 65k output limit (reasoning model)
-    { name: 'o1-mini', label: 'o1-mini', provider: 'OpenAI', maxTokenAllowed: 128000, maxCompletionTokens: 65000 },
+    // o4-mini: fast/o-series alternative
+    { name: 'o4-mini', label: 'o4-mini', provider: 'OpenAI', maxTokenAllowed: 128000, maxCompletionTokens: 32000 },
   ];
 
   async getDynamicModels(
@@ -76,11 +46,10 @@ export default class OpenAIProvider extends BaseProvider {
     const res = (await response.json()) as any;
     const staticModelIds = this.staticModels.map((m) => m.name);
 
-    const data = res.data.filter(
-      (model: any) =>
-        model.object === 'model' &&
-        (model.id.startsWith('gpt-') || model.id.startsWith('o') || model.id.startsWith('chatgpt-')) &&
-        !staticModelIds.includes(model.id),
+    // Restrict dynamic models to only the ones we use
+    const allowed = new Set(['gpt-5', 'o4-mini']);
+    const data = (res.data || []).filter(
+      (model: any) => model.object === 'model' && allowed.has(model.id) && !staticModelIds.includes(model.id),
     );
 
     return data.map((m: any) => {
@@ -134,7 +103,7 @@ export default class OpenAIProvider extends BaseProvider {
     serverEnv: Env;
     apiKeys?: Record<string, string>;
     providerSettings?: Record<string, IProviderSetting>;
-  }): LanguageModelV1 {
+  }): LanguageModel {
     const { model, serverEnv, apiKeys, providerSettings } = options;
 
     const { apiKey } = this.getProviderBaseUrlAndKey({

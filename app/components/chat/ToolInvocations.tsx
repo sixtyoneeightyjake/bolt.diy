@@ -1,4 +1,8 @@
-import type { ToolInvocationUIPart } from '@ai-sdk/ui-utils';
+/*
+ * Tool invocations UI (compatible shape for AI SDK v5 migrations)
+ * v5 surfaces tool calls/results inside message parts. This component expects a minimal
+ * shape that we define locally so the app can typecheck independently of SDK internals.
+ */
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useMemo, useState, useEffect } from 'react';
 import { createHighlighter, type BundledLanguage, type BundledTheme, type HighlighterGeneric } from 'shiki';
@@ -14,6 +18,21 @@ import { logger } from '~/utils/logger';
 import { themeStore, type Theme } from '~/lib/stores/theme';
 import { useStore } from '@nanostores/react';
 import type { ToolCallAnnotation } from '~/types/context';
+
+// Minimal types for tool invocation UI parts (decoupled from SDK internals)
+type ToolInvocationState = 'call' | 'result';
+
+type ToolInvocation = {
+  state: ToolInvocationState;
+  toolName: string;
+  toolCallId: string;
+  args?: unknown;
+  result?: unknown;
+};
+
+export type ToolInvocationUIPart = {
+  toolInvocation: ToolInvocation;
+};
 
 const highlighterOptions = {
   langs: ['json'],
@@ -213,7 +232,7 @@ const ToolResultsList = memo(({ toolInvocations, toolCallAnnotations, theme }: T
           });
 
           const isErrorResult = [TOOL_NO_EXECUTE_FUNCTION, TOOL_EXECUTION_DENIED, TOOL_EXECUTION_ERROR].includes(
-            tool.toolInvocation.result,
+            String(tool.toolInvocation.result),
           );
 
           return (

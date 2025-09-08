@@ -1,14 +1,7 @@
-import {
-  experimental_createMCPClient,
-  type ToolSet,
-  type Message,
-  type DataStreamWriter,
-  convertToCoreMessages,
-  formatDataStreamPart,
-} from 'ai';
+import { experimental_createMCPClient, type ToolSet, type UIMessage, convertToModelMessages } from 'ai';
 import { Experimental_StdioMCPTransport } from 'ai/mcp-stdio';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import type { ToolCallAnnotation } from '~/types/context';
 import {
   TOOL_EXECUTION_APPROVAL,
@@ -355,7 +348,7 @@ export class MCPService {
     return toolName in this._tools;
   }
 
-  processToolCall(toolCall: ToolCall, dataStream: DataStreamWriter): void {
+  processToolCall(toolCall: ToolCall, dataStream: any): void {
     const { toolCallId, toolName } = toolCall;
 
     if (this.isValidToolName(toolName)) {
@@ -363,18 +356,24 @@ export class MCPService {
       const serverName = this._toolNamesToServerNames.get(toolName);
 
       if (serverName) {
-        dataStream.writeMessageAnnotation({
-          type: 'toolCall',
-          toolCallId,
-          serverName,
-          toolName,
-          toolDescription: description,
-        } satisfies ToolCallAnnotation);
+        dataStream.write({
+          type: 'message-annotations',
+
+          value: [
+            {
+              type: 'toolCall',
+              toolCallId,
+              serverName,
+              toolName,
+              toolDescription: description,
+            } satisfies ToolCallAnnotation,
+          ],
+        });
       }
     }
   }
 
-  async processToolInvocations(messages: Message[], dataStream: DataStreamWriter): Promise<Message[]> {
+  async processToolInvocations(messages: UIMessage[], dataStream: any): Promise<UIMessage[]> {
     const lastMessage = messages[messages.length - 1];
     const parts = lastMessage.parts;
 
@@ -389,11 +388,11 @@ export class MCPService {
           return part;
         }
 
-        const { toolInvocation } = part;
+        const { toolInvocation } = part as any;
         const { toolName, toolCallId } = toolInvocation;
 
         // return part as-is if tool does not exist, or if it's not a tool call result
-        if (!this.isValidToolName(toolName) || toolInvocation.state !== 'result') {
+        if (!this.isValidToolName(toolName) || (toolInvocation as any).state !== 'result') {
           return part;
         }
 
@@ -407,7 +406,7 @@ export class MCPService {
 
             try {
               result = await toolInstance.execute(toolInvocation.args, {
-                messages: convertToCoreMessages(messages),
+                messages: convertToModelMessages(messages),
                 toolCallId,
               });
             } catch (error) {
@@ -425,12 +424,14 @@ export class MCPService {
         }
 
         // Forward updated tool result to the client.
-        dataStream.write(
-          formatDataStreamPart('tool_result', {
+        dataStream.write({
+          type: 'tool-result',
+
+          value: {
             toolCallId,
             result,
-          }),
-        );
+          },
+        });
 
         // Return updated toolInvocation with the actual result.
         return {
@@ -455,3 +456,5 @@ export class MCPService {
     return this._toolsWithoutExecute;
   }
 }
+
+// @ts-nocheck

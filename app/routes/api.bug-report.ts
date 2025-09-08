@@ -1,6 +1,6 @@
 import { json, type ActionFunctionArgs } from '@remix-run/cloudflare';
 import { Octokit } from '@octokit/rest';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // Rate limiting store (in production, use Redis or similar)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();

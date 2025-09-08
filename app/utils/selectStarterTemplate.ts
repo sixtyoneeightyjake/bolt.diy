@@ -94,6 +94,16 @@ export const selectStarterTemplate = async (options: { message: string; model: s
     method: 'POST',
     body: JSON.stringify(requestBody),
   });
+
+  if (response.status === 401) {
+    const { SIGN_IN_URL } = await import('~/utils/auth.config');
+
+    if (typeof window !== 'undefined') {
+      window.location.href = SIGN_IN_URL;
+      return { template: 'blank', title: '' };
+    }
+  }
+
   const respJson: { text: string } = await response.json();
   console.log(respJson);
 

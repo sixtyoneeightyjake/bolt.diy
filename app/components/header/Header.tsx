@@ -4,6 +4,9 @@ import { chatStore } from '~/lib/stores/chat';
 import { classNames } from '~/utils/classNames';
 import { HeaderActionButtons } from './HeaderActionButtons.client';
 import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
+import { HeaderAuthControls } from '~/components/auth/AuthButtons.client';
+import { UserStatus } from '~/components/auth/UserStatus.client';
+import SignOutButtonClient from '~/components/auth/SignOutButton.client';
 
 export function Header() {
   const chat = useStore(chatStore);
@@ -17,10 +20,14 @@ export function Header() {
     >
       <div className="flex items-center gap-2 z-logo text-bolt-elements-textPrimary cursor-pointer">
         <div className="i-ph:sidebar-simple-duotone text-xl" />
-        <a href="/" className="text-2xl font-semibold text-accent flex items-center">
-          {/* <span className="i-bolt:logo-text?mask w-[46px] inline-block" /> */}
-          <img src="/logo-light-styled.png" alt="logo" className="w-[90px] inline-block dark:hidden" />
-          <img src="/logo-dark-styled.png" alt="logo" className="w-[90px] inline-block hidden dark:block" />
+        <a
+          href="/"
+          className="text-2xl font-extrabold tracking-tight flex items-center gap-1 select-none transition-transform duration-150 hover:scale-[1.02]"
+          aria-label="MojoCode Home"
+        >
+          <span className="text-white hidden dark:inline">MOJO</span>
+          <span className="text-gray-900 inline dark:hidden">MOJO</span>
+          <span className="text-red-600">.CODE</span>
         </a>
       </div>
       {chat.started && ( // Display ChatDescription and HeaderActionButtons only when the chat has started.
@@ -37,6 +44,12 @@ export function Header() {
           </ClientOnly>
         </>
       )}
+      {/* Auth status + controls */}
+      <div className="ml-auto flex items-center gap-3">
+        <ClientOnly>{() => <UserStatus />}</ClientOnly>
+        <ClientOnly>{() => <HeaderAuthControls />}</ClientOnly>
+        <ClientOnly>{() => <SignOutButtonClient />}</ClientOnly>
+      </div>
     </header>
   );
 }

@@ -66,7 +66,13 @@ export function DataVisualization({ chats }: DataVisualizationProps) {
         totalMessages++;
 
         if (message.role === 'assistant') {
-          const providerMatch = message.content.match(/provider:\s*([\w-]+)/i);
+          // Extract text content from message parts
+          const textContent = message.parts
+            .filter((part) => part.type === 'text')
+            .map((part) => part.text)
+            .join(' ');
+
+          const providerMatch = textContent.match(/provider:\s*([\w-]+)/i);
           const provider = providerMatch ? providerMatch[1] : 'unknown';
           apiUsage[provider] = (apiUsage[provider] || 0) + 1;
         }

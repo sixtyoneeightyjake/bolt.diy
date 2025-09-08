@@ -1,5 +1,4 @@
 import { type ActionFunctionArgs } from '@remix-run/cloudflare';
-import { streamText } from '~/lib/.server/llm/stream-text';
 import { stripIndents } from '~/utils/stripIndent';
 import type { ProviderInfo } from '~/types/model';
 import { getApiKeysFromCookie, getProviderSettingsFromCookie } from '~/lib/api/cookies';
@@ -41,13 +40,19 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
   const providerSettings = getProviderSettingsFromCookie(cookieHeader);
 
   try {
+    const { streamText } = await import('~/lib/.server/llm/stream-text');
     const result = await streamText({
       messages: [
         {
           role: 'user',
-          content:
-            `[Model: ${model}]\n\n[Provider: ${providerName}]\n\n` +
-            stripIndents`
+
+          parts: [
+            {
+              type: 'text',
+
+              text:
+                `[Model: ${model}]\n\n[Provider: ${providerName}]\n\n` +
+                stripIndents`
             You are a professional prompt engineer specializing in crafting precise, effective prompts.
             Your task is to enhance prompts by making them more specific, actionable, and effective.
 
@@ -75,6 +80,8 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
               ${message}
             </original_prompt>
           `,
+            },
+          ],
         },
       ],
       env: context.cloudflare?.env as any,

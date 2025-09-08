@@ -9,11 +9,95 @@ type MCPSettings = {
   maxLLMSteps: number;
 };
 
+function getEnv(key: string): string | undefined {
+  // Vite exposes env on import.meta.env at build time
+  try {
+    // @ts-ignore -- Vite env typing may not include dynamic keys
+    return (import.meta as any)?.env?.[key];
+  } catch {
+    return undefined;
+  }
+}
+
+function parseHeaderString(value: string | undefined): Record<string, string> | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    const maybeJson = JSON.parse(value);
+
+    if (maybeJson && typeof maybeJson === 'object') {
+      return maybeJson as Record<string, string>;
+    }
+  } catch {}
+
+  // Fallback: KEY=VAL;Key2=Val2
+  const out: Record<string, string> = {};
+  value
+    .split(/[;,]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .forEach((pair) => {
+      const idx = pair.indexOf('=');
+
+      if (idx > 0) {
+        const k = pair.slice(0, idx).trim();
+        const v = pair.slice(idx + 1).trim();
+        out[k] = v;
+      }
+    });
+
+  return Object.keys(out).length ? out : undefined;
+}
+
+function buildDefaultMcpConfigFromEnv(): MCPConfig {
+  const servers: Record<string, any> = {};
+
+  const ctx7Url = getEnv('VITE_MCP_CONTEXT7_SSE_URL');
+
+  if (ctx7Url) {
+    servers.context7 = {
+      type: 'sse',
+      url: ctx7Url,
+      headers: parseHeaderString(getEnv('VITE_MCP_CONTEXT7_HEADERS')),
+    };
+  }
+
+  const seqUrl = getEnv('VITE_MCP_SEQUENTIAL_SSE_URL') || getEnv('VITE_MCP_SEQUENTIALTHINKING_SSE_URL');
+
+  if (seqUrl) {
+    servers.sequentialthinking = {
+      type: 'sse',
+      url: seqUrl,
+      headers: parseHeaderString(
+        getEnv('VITE_MCP_SEQUENTIAL_HEADERS') || getEnv('VITE_MCP_SEQUENTIALTHINKING_HEADERS'),
+      ),
+    };
+  }
+
+  const dcUrl = getEnv('VITE_MCP_DESKTOPCOM_SSE_URL') || getEnv('VITE_MCP_DESKTOP_COMMANDER_SSE_URL');
+
+  if (dcUrl) {
+    servers.desktopcommander = {
+      type: 'sse',
+      url: dcUrl,
+      headers: parseHeaderString(getEnv('VITE_MCP_DESKTOPCOM_HEADERS') || getEnv('VITE_MCP_DESKTOP_COMMANDER_HEADERS')),
+    };
+  }
+
+  const exaUrl = getEnv('VITE_MCP_EXA_SSE_URL');
+
+  if (exaUrl) {
+    servers.exa = { type: 'sse', url: exaUrl, headers: parseHeaderString(getEnv('VITE_MCP_EXA_HEADERS')) };
+  }
+
+  return { mcpServers: servers } as MCPConfig;
+}
+
 const defaultSettings = {
   maxLLMSteps: 5,
-  mcpConfig: {
-    mcpServers: {},
-  },
+  mcpConfig: buildDefaultMcpConfigFromEnv(),
 } satisfies MCPSettings;
 
 type Store = {
@@ -56,7 +140,16 @@ export const useMCPStore = create<Store & Actions>((set, get) => ({
           }));
         }
       } else {
-        localStorage.setItem(MCP_SETTINGS_KEY, JSON.stringify(defaultSettings));
+        // Initialize with defaults built from env if present
+        try {
+          const initial = { ...defaultSettings, mcpConfig: buildDefaultMcpConfigFromEnv() } as MCPSettings;
+          const serverTools = await updateServerConfig(initial.mcpConfig);
+          localStorage.setItem(MCP_SETTINGS_KEY, JSON.stringify(initial));
+          set(() => ({ settings: initial, serverTools }));
+        } catch {
+          // Persist anyway, but with empty toolset if server update fails
+          localStorage.setItem(MCP_SETTINGS_KEY, JSON.stringify(defaultSettings));
+        }
       }
     }
 

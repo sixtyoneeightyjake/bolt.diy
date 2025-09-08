@@ -1,15 +1,31 @@
 import { type ActionFunctionArgs } from '@remix-run/cloudflare';
-import { streamText } from '~/lib/.server/llm/stream-text';
 import type { IProviderSetting, ProviderInfo } from '~/types/model';
 import { generateText } from 'ai';
 import { PROVIDER_LIST } from '~/utils/constants';
-import { MAX_TOKENS, PROVIDER_COMPLETION_LIMITS, isReasoningModel } from '~/lib/.server/llm/constants';
 import { LLMManager } from '~/lib/modules/llm/manager';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import { getApiKeysFromCookie, getProviderSettingsFromCookie } from '~/lib/api/cookies';
 import { createScopedLogger } from '~/utils/logger';
+import { SIGN_IN_URL } from '~/utils/auth.config';
 
 export async function action(args: ActionFunctionArgs) {
+  // Require authentication before allowing LLM calls
+  const { getAuth } = await import('@clerk/remix/ssr.server');
+  const auth = await getAuth(args);
+
+  if (!auth?.userId) {
+    return new Response(
+      JSON.stringify({ error: true, message: 'Authentication required', statusCode: 401, isRetryable: false }),
+      {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Redirect': SIGN_IN_URL,
+        },
+      },
+    );
+  }
+
   return llmCallAction(args);
 }
 
@@ -23,46 +39,6 @@ async function getModelList(options: {
 }
 
 const logger = createScopedLogger('api.llmcall');
-
-function getCompletionTokenLimit(modelDetails: ModelInfo): number {
-  // 1. If model specifies completion tokens, use that
-  if (modelDetails.maxCompletionTokens && modelDetails.maxCompletionTokens > 0) {
-    return modelDetails.maxCompletionTokens;
-  }
-
-  // 2. Use provider-specific default
-  const providerDefault = PROVIDER_COMPLETION_LIMITS[modelDetails.provider];
-
-  if (providerDefault) {
-    return providerDefault;
-  }
-
-  // 3. Final fallback to MAX_TOKENS, but cap at reasonable limit for safety
-  return Math.min(MAX_TOKENS, 16384);
-}
-
-function validateTokenLimits(modelDetails: ModelInfo, requestedTokens: number): { valid: boolean; error?: string } {
-  const modelMaxTokens = modelDetails.maxTokenAllowed || 128000;
-  const maxCompletionTokens = getCompletionTokenLimit(modelDetails);
-
-  // Check against model's context window
-  if (requestedTokens > modelMaxTokens) {
-    return {
-      valid: false,
-      error: `Requested tokens (${requestedTokens}) exceed model's context window (${modelMaxTokens}). Please reduce your request size.`,
-    };
-  }
-
-  // Check against completion token limits
-  if (requestedTokens > maxCompletionTokens) {
-    return {
-      valid: false,
-      error: `Requested tokens (${requestedTokens}) exceed model's completion limit (${maxCompletionTokens}). Consider using a model with higher token limits.`,
-    };
-  }
-
-  return { valid: true };
-}
 
 async function llmCallAction({ context, request }: ActionFunctionArgs) {
   const { system, message, model, provider, streamOutput } = await request.json<{
@@ -96,6 +72,7 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
 
   if (streamOutput) {
     try {
+      const { streamText } = await import('~/lib/.server/llm/stream-text');
       const result = await streamText({
         options: {
           system,
@@ -103,7 +80,13 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
         messages: [
           {
             role: 'user',
-            content: `${message}`,
+
+            parts: [
+              {
+                type: 'text',
+                text: `${message}`,
+              },
+            ],
           },
         ],
         env: context.cloudflare?.env as any,
@@ -151,6 +134,46 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
     }
   } else {
     try {
+      const { MAX_TOKENS, PROVIDER_COMPLETION_LIMITS, isReasoningModel } = await import('~/lib/.server/llm/constants');
+
+      const getCompletionTokenLimit = (modelDetails: ModelInfo): number => {
+        if (modelDetails.maxCompletionTokens && modelDetails.maxCompletionTokens > 0) {
+          return modelDetails.maxCompletionTokens;
+        }
+
+        const providerDefault = (PROVIDER_COMPLETION_LIMITS as any)[modelDetails.provider];
+
+        if (providerDefault) {
+          return providerDefault;
+        }
+
+        return Math.min(MAX_TOKENS as number, 16384);
+      };
+
+      const validateTokenLimits = (
+        modelDetails: ModelInfo,
+        requestedTokens: number,
+      ): { valid: boolean; error?: string } => {
+        const modelMaxTokens = modelDetails.maxTokenAllowed || 128000;
+        const maxCompletionTokens = getCompletionTokenLimit(modelDetails);
+
+        if (requestedTokens > modelMaxTokens) {
+          return {
+            valid: false,
+            error: `Requested tokens (${requestedTokens}) exceed model's context window (${modelMaxTokens}). Please reduce your request size.`,
+          };
+        }
+
+        if (requestedTokens > maxCompletionTokens) {
+          return {
+            valid: false,
+            error: `Requested tokens (${requestedTokens}) exceed model's completion limit (${maxCompletionTokens}). Consider using a model with higher token limits.`,
+          };
+        }
+
+        return { valid: true };
+      };
+
       const models = await getModelList({ apiKeys, providerSettings, serverEnv: context.cloudflare?.env as any });
       const modelDetails = models.find((m: ModelInfo) => m.name === model);
 
@@ -183,7 +206,9 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
       logger.info(`DEBUG: Model "${modelDetails.name}" detected as reasoning model: ${isReasoning}`);
 
       // Use maxCompletionTokens for reasoning models (o1, GPT-5), maxTokens for traditional models
-      const tokenParams = isReasoning ? { maxCompletionTokens: dynamicMaxTokens } : { maxTokens: dynamicMaxTokens };
+      const tokenParams = isReasoning
+        ? { maxCompletionTokens: dynamicMaxTokens }
+        : { maxOutputTokens: dynamicMaxTokens };
 
       // Filter out unsupported parameters for reasoning models
       const baseParams = {

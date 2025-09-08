@@ -1,3 +1,5 @@
+import type { UIMessage } from 'ai';
+
 interface Window {
   showDirectoryPicker(): Promise<FileSystemDirectoryHandle>;
   webkitSpeechRecognition: typeof SpeechRecognition;
@@ -10,4 +12,12 @@ interface Performance {
     totalJSHeapSize: number;
     usedJSHeapSize: number;
   };
+}
+
+// Extended UIMessage type with createdAt property
+declare global {
+  interface ExtendedUIMessage extends UIMessage {
+    createdAt?: Date;
+    content?: string;
+  }
 }

@@ -16,9 +16,10 @@ body {
 
 :root {
   --gradient-opacity: 0.8;
-  --primary-color: rgba(158, 117, 240, var(--gradient-opacity));
-  --secondary-color: rgba(138, 43, 226, var(--gradient-opacity));
-  --accent-color: rgba(128, 59, 239, var(--gradient-opacity));
+  /* MojoCode brand rays: deep red tones */
+  --primary-color: rgba(220, 38, 38, var(--gradient-opacity)); /* red-600 */
+  --secondary-color: rgba(153, 27, 27, var(--gradient-opacity)); /* red-800 */
+  --accent-color: rgba(127, 29, 29, var(--gradient-opacity)); /* red-900 */
   // --primary-color: rgba(147, 112, 219, var(--gradient-opacity));
   // --secondary-color: rgba(138, 43, 226, var(--gradient-opacity));
   // --accent-color: rgba(180, 170, 220, var(--gradient-opacity));

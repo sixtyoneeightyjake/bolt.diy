@@ -23,6 +23,7 @@ import { McpTools } from './MCPTools';
 interface ChatBoxProps {
   isModelSettingsCollapsed: boolean;
   setIsModelSettingsCollapsed: (collapsed: boolean) => void;
+  showModelSettingsToggle?: boolean;
   provider: any;
   providerList: any[];
   modelList: any[];
@@ -87,10 +88,10 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
             gradientUnits="userSpaceOnUse"
             gradientTransform="rotate(-45)"
           >
-            <stop offset="0%" stopColor="#b44aff" stopOpacity="0%"></stop>
-            <stop offset="40%" stopColor="#b44aff" stopOpacity="80%"></stop>
-            <stop offset="50%" stopColor="#b44aff" stopOpacity="80%"></stop>
-            <stop offset="100%" stopColor="#b44aff" stopOpacity="0%"></stop>
+            <stop offset="0%" stopColor="#dc2626" stopOpacity="0%"></stop>
+            <stop offset="40%" stopColor="#dc2626" stopOpacity="80%"></stop>
+            <stop offset="50%" stopColor="#dc2626" stopOpacity="80%"></stop>
+            <stop offset="100%" stopColor="#dc2626" stopOpacity="0%"></stop>
           </linearGradient>
           <linearGradient id="shine-gradient">
             <stop offset="0%" stopColor="white" stopOpacity="0%"></stop>
@@ -105,7 +106,7 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
       <div>
         <ClientOnly>
           {() => (
-            <div className={props.isModelSettingsCollapsed ? 'hidden' : ''}>
+            <div className={props.showModelSettingsToggle === false || props.isModelSettingsCollapsed ? 'hidden' : ''}>
               <ModelSelector
                 key={props.provider?.name + ':' + props.modelList.length}
                 model={props.model}
@@ -236,7 +237,7 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
             minHeight: props.TEXTAREA_MIN_HEIGHT,
             maxHeight: props.TEXTAREA_MAX_HEIGHT,
           }}
-          placeholder={props.chatMode === 'build' ? 'How can Bolt help you today?' : 'What would you like to discuss?'}
+          placeholder={props.chatMode === 'build' ? 'How can Mojo blow your mind?' : 'What would you like to discuss?'}
           translate="no"
         />
         <ClientOnly>
@@ -304,20 +305,22 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
                 {props.chatMode === 'discuss' ? <span>Discuss</span> : <span />}
               </IconButton>
             )}
-            <IconButton
-              title="Model Settings"
-              className={classNames('transition-all flex items-center gap-1', {
-                'bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent':
-                  props.isModelSettingsCollapsed,
-                'bg-bolt-elements-item-backgroundDefault text-bolt-elements-item-contentDefault':
-                  !props.isModelSettingsCollapsed,
-              })}
-              onClick={() => props.setIsModelSettingsCollapsed(!props.isModelSettingsCollapsed)}
-              disabled={!props.providerList || props.providerList.length === 0}
-            >
-              <div className={`i-ph:caret-${props.isModelSettingsCollapsed ? 'right' : 'down'} text-lg`} />
-              {props.isModelSettingsCollapsed ? <span className="text-xs">{props.model}</span> : <span />}
-            </IconButton>
+            {props.showModelSettingsToggle !== false && (
+              <IconButton
+                title="Model Settings"
+                className={classNames('transition-all flex items-center gap-1', {
+                  'bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent':
+                    props.isModelSettingsCollapsed,
+                  'bg-bolt-elements-item-backgroundDefault text-bolt-elements-item-contentDefault':
+                    !props.isModelSettingsCollapsed,
+                })}
+                onClick={() => props.setIsModelSettingsCollapsed(!props.isModelSettingsCollapsed)}
+                disabled={!props.providerList || props.providerList.length === 0}
+              >
+                <div className={`i-ph:caret-${props.isModelSettingsCollapsed ? 'right' : 'down'} text-lg`} />
+                {props.isModelSettingsCollapsed ? <span className="text-xs">{props.model}</span> : <span />}
+              </IconButton>
+            )}
           </div>
           {props.input.length > 3 ? (
             <div className="text-xs text-bolt-elements-textTertiary">

@@ -15,6 +15,8 @@ import {
 import { AuthDialog } from './AuthDialog';
 import { StatsDisplay } from './StatsDisplay';
 import { RepositoryList } from './RepositoryList';
+import { SignedIn, useAuth } from '@clerk/remix';
+import { SIGN_IN_URL } from '~/utils/auth.config';
 
 interface GitHubConnectionProps {
   onCloneRepository?: (repoUrl: string) => void;
@@ -29,6 +31,9 @@ export default function GitHubConnection({ onCloneRepository }: GitHubConnection
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isStatsExpanded, setIsStatsExpanded] = useState(false);
   const [isReposExpanded, setIsReposExpanded] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const { getToken, isSignedIn } = useAuth();
 
   const handleConnect = () => {
     setIsAuthDialogOpen(true);
@@ -39,6 +44,67 @@ export default function GitHubConnection({ onCloneRepository }: GitHubConnection
     setIsStatsExpanded(false);
     setIsReposExpanded(false);
     toast.success('Disconnected from GitHub');
+  };
+
+  const buildSignInUrl = () => {
+    try {
+      const url = new URL(SIGN_IN_URL);
+      url.searchParams.set('redirect_url', typeof window !== 'undefined' ? `${window.location.origin}/` : '/');
+
+      return url.toString();
+    } catch {
+      return SIGN_IN_URL;
+    }
+  };
+
+  const buildManageConnectionsUrl = () => {
+    try {
+      const base = new URL(SIGN_IN_URL);
+      base.pathname = '/user';
+      base.searchParams.set('redirect_url', typeof window !== 'undefined' ? `${window.location.origin}/` : '/');
+
+      return base.toString();
+    } catch {
+      return SIGN_IN_URL;
+    }
+  };
+
+  const handleImportFromOAuth = async () => {
+    setIsImporting(true);
+    setImportError(null);
+
+    try {
+      const jwt = await getToken();
+
+      if (!jwt) {
+        window.location.href = buildSignInUrl();
+        return;
+      }
+
+      const res = await fetch('/api.github-import-token', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data?.error || `Server error ${res.status}`);
+      }
+
+      const data = (await res.json()) as { token?: string };
+
+      if (!data.token) {
+        throw new Error('No token returned');
+      }
+
+      // Use OAuth token as Bearer (matches 'fine-grained' behavior in store)
+      await githubConnectionStore.connect(data.token, 'fine-grained');
+      toast.success('Imported GitHub OAuth token');
+    } catch (e: any) {
+      setImportError(e?.message || 'Unknown error');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleRefreshStats = async () => {
@@ -111,6 +177,27 @@ export default function GitHubConnection({ onCloneRepository }: GitHubConnection
                 <div className="i-ph:sign-out w-4 h-4 mr-2" />
                 Disconnect
               </Button>
+              <SignedIn>
+                <Button
+                  onClick={handleImportFromOAuth}
+                  disabled={isImporting}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  {isImporting ? (
+                    <>
+                      <div className="i-ph:spinner-gap w-4 h-4 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <div className="i-ph:github-logo w-4 h-4" />
+                      Import OAuth Token
+                    </>
+                  )}
+                </Button>
+              </SignedIn>
             </>
           ) : (
             <Button
@@ -133,8 +220,66 @@ export default function GitHubConnection({ onCloneRepository }: GitHubConnection
               )}
             </Button>
           )}
+          {!isConnected && (
+            <SignedIn>
+              <Button
+                onClick={handleImportFromOAuth}
+                disabled={isImporting}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                {isImporting ? (
+                  <>
+                    <div className="i-ph:spinner-gap w-4 h-4 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <div className="i-ph:github-logo w-4 h-4" />
+                    Import OAuth Token
+                  </>
+                )}
+              </Button>
+            </SignedIn>
+          )}
         </div>
       </div>
+
+      {!isConnected && (
+        <div className="p-4 rounded-lg bg-bolt-elements-background-depth-1 border border-bolt-elements-borderColor">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-sm text-bolt-elements-textSecondary">
+              <div className="font-medium text-bolt-elements-textPrimary mb-1">Use your GitHub OAuth token</div>
+              <div>
+                We can import your GitHub OAuth access token from your Clerk session. This avoids creating a personal
+                access token.
+              </div>
+              {importError && <div className="mt-2 text-bolt-elements-textDanger">{importError}</div>}
+            </div>
+            <div className="flex items-center gap-2">
+              {isSignedIn ? (
+                <>
+                  <Button variant="outline" size="sm" onClick={handleImportFromOAuth} disabled={isImporting}>
+                    {isImporting ? 'Importing…' : 'Import OAuth Token'}
+                  </Button>
+                  <a href={buildManageConnectionsUrl()} target="_blank" rel="noreferrer">
+                    <Button variant="outline" size="sm">
+                      Manage connections
+                    </Button>
+                  </a>
+                </>
+              ) : (
+                <a href={buildSignInUrl()}>
+                  <Button variant="outline" size="sm">
+                    Sign in to import
+                  </Button>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Connection Status */}
       <div className="p-4 rounded-lg bg-bolt-elements-background-depth-1 border border-bolt-elements-borderColor">

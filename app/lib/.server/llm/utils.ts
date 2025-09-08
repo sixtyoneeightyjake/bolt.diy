@@ -1,17 +1,25 @@
-import { type Message } from 'ai';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, MODEL_REGEX, PROVIDER_REGEX } from '~/utils/constants';
 import { IGNORE_PATTERNS, type FileMap } from './constants';
 import ignore from 'ignore';
 import type { ContextAnnotation } from '~/types/context';
 
-export function extractPropertiesFromMessage(message: Omit<Message, 'id'>): {
+export function extractPropertiesFromMessage(message: any): {
   model: string;
   provider: string;
   content: string;
 } {
-  const textContent = Array.isArray(message.content)
-    ? message.content.find((item) => item.type === 'text')?.text || ''
-    : message.content;
+  let textContent = '';
+
+  if (Array.isArray(message?.parts)) {
+    textContent = message.parts
+      .filter((p: any) => p?.type === 'text')
+      .map((p: any) => (typeof p.text === 'string' ? p.text : ''))
+      .join('');
+  } else if (Array.isArray(message?.content)) {
+    textContent = message.content.find((item: any) => item.type === 'text')?.text || '';
+  } else if (typeof message?.content === 'string') {
+    textContent = message.content;
+  }
 
   const modelMatch = textContent.match(MODEL_REGEX);
   const providerMatch = textContent.match(PROVIDER_REGEX);
@@ -28,18 +36,7 @@ export function extractPropertiesFromMessage(message: Omit<Message, 'id'>): {
    */
   const provider = providerMatch ? providerMatch[1] : DEFAULT_PROVIDER.name;
 
-  const cleanedContent = Array.isArray(message.content)
-    ? message.content.map((item) => {
-        if (item.type === 'text') {
-          return {
-            type: 'text',
-            text: item.text?.replace(MODEL_REGEX, '').replace(PROVIDER_REGEX, ''),
-          };
-        }
-
-        return item; // Preserve image_url and other types as is
-      })
-    : textContent.replace(MODEL_REGEX, '').replace(PROVIDER_REGEX, '');
+  const cleanedContent = textContent.replace(MODEL_REGEX, '').replace(PROVIDER_REGEX, '');
 
   return { model, provider, content: cleanedContent };
 }
@@ -88,7 +85,7 @@ export function createFilesContext(files: FileMap, useRelativePath?: boolean) {
   return `<boltArtifact id="code-content" title="Code Content" >\n${fileContexts.join('\n')}\n</boltArtifact>`;
 }
 
-export function extractCurrentContext(messages: Message[]) {
+export function extractCurrentContext(messages: any[]) {
   const lastAssistantMessage = messages.filter((x) => x.role == 'assistant').slice(-1)[0];
 
   if (!lastAssistantMessage) {
@@ -98,31 +95,7 @@ export function extractCurrentContext(messages: Message[]) {
   let summary: ContextAnnotation | undefined;
   let codeContext: ContextAnnotation | undefined;
 
-  if (!lastAssistantMessage.annotations?.length) {
-    return { summary: undefined, codeContext: undefined };
-  }
-
-  for (let i = 0; i < lastAssistantMessage.annotations.length; i++) {
-    const annotation = lastAssistantMessage.annotations[i];
-
-    if (!annotation || typeof annotation !== 'object') {
-      continue;
-    }
-
-    if (!(annotation as any).type) {
-      continue;
-    }
-
-    const annotationObject = annotation as any;
-
-    if (annotationObject.type === 'codeContext') {
-      codeContext = annotationObject;
-      break;
-    } else if (annotationObject.type === 'chatSummary') {
-      summary = annotationObject;
-      break;
-    }
-  }
+  // v5 migration: annotations not used currently
 
   return { summary, codeContext };
 }
