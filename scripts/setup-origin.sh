@@ -197,7 +197,7 @@ Environment=PORT=${APP_PORT}
 # Optional: load secrets if present
 EnvironmentFile=-${APP_DIR}/.env
 EnvironmentFile=-${APP_DIR}/.env.local
-ExecStartPre=${PNPM_BIN} install --frozen-lockfile
+ExecStartPre=${PNPM_BIN} install --frozen-lockfile --prod=false
 ExecStartPre=${PNPM_BIN} run build
 ExecStart=${PNPM_BIN} run start:prod
 Restart=always
@@ -220,4 +220,3 @@ journalctl -u "${SERVICE_NAME}.service" -n 50 --no-pager || true
 
 echo "\nAll set. Point your DNS A record for ${DOMAIN} directly to this server (DNS-only, no proxy)."
 echo "Then visit: https://${DOMAIN}"
-
