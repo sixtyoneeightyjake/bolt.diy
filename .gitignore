@@ -27,7 +27,9 @@ dist-ssr
 /build
 functions/build/
 .env.local
+.env.peoduction
 .env
+.env.*
 .dev.vars
 *.vars
 .wrangler
