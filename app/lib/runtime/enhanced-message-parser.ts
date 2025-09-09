@@ -24,10 +24,12 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
     if (!this._hasDetectedArtifacts(input)) {
       let enhancedInput = this._detectAndWrapCodeBlocks(messageId, input);
 
-      // As a safe enhancement, detect raw JSON blobs that clearly look like
-      // package.json or app.json (Expo) even if not fenced in backticks
-      // This only triggers for top-level JSON objects with well-known keys
-      // to avoid false positives.
+      /*
+       * As a safe enhancement, detect raw JSON blobs that clearly look like
+       * package.json or app.json (Expo) even if not fenced in backticks
+       * This only triggers for top-level JSON objects with well-known keys
+       * to avoid false positives.
+       */
       enhancedInput = this._detectAndWrapRawJson(messageId, enhancedInput);
 
       if (enhancedInput !== input) {
@@ -159,25 +161,37 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
       return wrapped;
     });
 
-    // Detect code fences whose info string includes a filename
-    // Example: ```tsx src/App.tsx\n...```
+    /*
+     * Detect code fences whose info string includes a filename
+     * Example: ```tsx src/App.tsx\n...```
+     */
     const infoWithFilename = /```(\w+)\s+([\/\w\-\.]+\.\w+)\n([\s\S]*?)```/gi;
     enhanced = enhanced.replace(infoWithFilename, (match, lang, filePath, code) => {
       const blockHash = this._hashBlock(match);
-      if (processed.has(blockHash)) return match;
+
+      if (processed.has(blockHash)) {
+        return match;
+      }
+
       processed.add(blockHash);
 
       filePath = this._normalizeFilePath(filePath);
-      if (!this._isValidFilePath(filePath)) return match;
+
+      if (!this._isValidFilePath(filePath)) {
+        return match;
+      }
 
       const artifactId = `artifact-${messageId}-${this._artifactCounter++}`;
       const wrapped = this._wrapInArtifact(artifactId, filePath, code);
       logger.debug(`Auto-wrapped code block (info filename) as file: ${filePath}`);
+
       return wrapped;
     });
 
-    // Fallback: wrap any remaining fenced code blocks generically to ensure
-    // code lands in the workbench rather than flooding the chat UI.
+    /*
+     * Fallback: wrap any remaining fenced code blocks generically to ensure
+     * code lands in the workbench rather than flooding the chat UI.
+     */
     const genericCodeBlock = /```([\w\-]*)\n([\s\S]*?)```/g;
 
     enhanced = enhanced.replace(genericCodeBlock, (match, lang, code) => {
@@ -224,6 +238,7 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
       const artifactId = `artifact-${messageId}-${this._artifactCounter++}`;
       const wrapped = this._wrapInArtifact(artifactId, filePath, code);
       logger.debug(`Auto-wrapped generic code block as file: ${filePath}`);
+
       return wrapped;
     });
 
@@ -243,12 +258,18 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
 
     // Walk the string and collect balanced top-level JSON objects up to a reasonable size
     const maxScan = Math.min(input.length, 100000);
+
     for (let i = 0; i < maxScan; i++) {
-      if (input[i] !== '{') continue;
+      if (input[i] !== '{') {
+        continue;
+      }
 
       // Try to extract a balanced JSON block starting at i
       const end = this._findBalancedJsonEnd(input, i);
-      if (end === -1) continue;
+
+      if (end === -1) {
+        continue;
+      }
 
       const raw = input.slice(i, end + 1).trim();
 
@@ -260,7 +281,12 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
 
       try {
         const obj = JSON.parse(raw);
-        const isPackage = obj && typeof obj === 'object' && obj.name && obj.version && (obj.scripts || obj.dependencies || obj.devDependencies);
+        const isPackage =
+          obj &&
+          typeof obj === 'object' &&
+          obj.name &&
+          obj.version &&
+          (obj.scripts || obj.dependencies || obj.devDependencies);
         const isExpoApp = obj && typeof obj === 'object' && obj.expo && typeof obj.expo === 'object';
 
         if (!isPackage && !isExpoApp) {
@@ -269,6 +295,7 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
         }
 
         const blockHash = this._hashBlock(raw);
+
         if (processed.has(blockHash)) {
           i = end;
           continue;
@@ -292,6 +319,7 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
 
     // Apply replacements from the end to not disturb indices
     let out = input;
+
     for (let r = results.length - 1; r >= 0; r--) {
       const { start, end, content, target } = results[r];
       const artifactId = `artifact-${messageId}-${this._artifactCounter++}`;
@@ -315,13 +343,16 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
           escape = false;
           continue;
         }
+
         if (ch === '\\') {
           escape = true;
           continue;
         }
+
         if (ch === '"') {
           inString = false;
         }
+
         continue;
       }
 
@@ -329,10 +360,20 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
         inString = true;
         continue;
       }
-      if (ch === '{') depth++;
-      if (ch === '}') depth--;
-      if (depth === 0) return i;
+
+      if (ch === '{') {
+        depth++;
+      }
+
+      if (ch === '}') {
+        depth--;
+      }
+
+      if (depth === 0) {
+        return i;
+      }
     }
+
     return -1;
   }
 

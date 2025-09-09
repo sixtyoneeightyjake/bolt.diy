@@ -89,8 +89,8 @@ nginx -t && systemctl reload nginx
 
 echo -e "${GREEN}✓ SSL certificates installed and nginx updated${NC}"
 
-# Create systemd service for the application
-echo -e "${YELLOW}Creating systemd service...${NC}"
+# Create or update systemd service for the application
+echo -e "${YELLOW}Configuring systemd service...${NC}"
 cat > /etc/systemd/system/bolt-diy.service << EOF
 [Unit]
 Description=Bolt.diy Application
@@ -110,12 +110,18 @@ Environment=PORT=5173
 WantedBy=multi-user.target
 EOF
 
-# Start and enable the service
+# Start and enable (or restart) the service
 systemctl daemon-reload
-systemctl enable bolt-diy
-systemctl start bolt-diy
+systemctl enable bolt-diy || true
+if systemctl is-active --quiet bolt-diy; then
+  echo -e "${YELLOW}Restarting existing bolt-diy service to pick up new build...${NC}"
+  systemctl restart bolt-diy
+else
+  echo -e "${YELLOW}Starting bolt-diy service...${NC}"
+  systemctl start bolt-diy
+fi
 
-echo -e "${GREEN}✓ Application service created and started${NC}"
+echo -e "${GREEN}✓ Application service is running${NC}"
 
 # Setup automatic certificate renewal
 echo -e "${YELLOW}Setting up automatic certificate renewal...${NC}"

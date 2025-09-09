@@ -2,8 +2,7 @@ import React from 'react';
 
 const EXAMPLE_PROMPTS = [
   {
-    text:
-      'Create a responsive web app (Vite + React) about clowns for hire. Use <boltArtifact> file actions and start the dev server.',
+    text: 'Create a responsive web app (Vite + React) about clowns for hire. Use <boltArtifact> file actions and start the dev server.',
   },
   { text: 'Build a todo app with annoying alarms and alerts (web) using Vite. Use <boltArtifact> file actions.' },
   { text: 'Build a "Mojo is awesome" blog site with a homepage and posts (web) using Vite.' },

@@ -124,4 +124,3 @@ export default ClerkApp(App, {
  * Provide Clerk-aware error boundary
  * Use Remix's default ErrorBoundary or add a custom one if desired
  */
-

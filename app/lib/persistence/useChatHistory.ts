@@ -395,7 +395,7 @@ function navigateChat(nextId: string) {
       sessionStorage.setItem(`__boltHardRedirect:${targetPath}`, '1');
     } catch {}
     window.location.assign(url.toString());
-    
+
     return;
   }
 
