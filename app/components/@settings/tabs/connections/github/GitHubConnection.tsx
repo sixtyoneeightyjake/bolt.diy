@@ -46,16 +46,7 @@ export default function GitHubConnection({ onCloneRepository }: GitHubConnection
     toast.success('Disconnected from GitHub');
   };
 
-  const buildSignInUrl = () => {
-    try {
-      const url = new URL(SIGN_IN_URL);
-      url.searchParams.set('redirect_url', typeof window !== 'undefined' ? `${window.location.origin}/` : '/');
-
-      return url.toString();
-    } catch {
-      return SIGN_IN_URL;
-    }
-  };
+  const buildSignInUrl = () => '/sign-in';
 
   const buildManageConnectionsUrl = () => {
     try {
