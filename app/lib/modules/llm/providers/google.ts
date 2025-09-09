@@ -13,10 +13,16 @@ export default class GoogleProvider extends BaseProvider {
   };
 
   staticModels: ModelInfo[] = [
-    // Restrict to Gemini 2.5 Pro only
     {
       name: 'gemini-2.5-pro',
       label: 'Gemini 2.5 Pro',
+      provider: 'Google',
+      maxTokenAllowed: 128000,
+      maxCompletionTokens: 8192,
+    },
+    {
+      name: 'gemini-2.5-flash',
+      label: 'Gemini 2.5 Flash',
       provider: 'Google',
       maxTokenAllowed: 128000,
       maxCompletionTokens: 8192,
@@ -40,11 +46,18 @@ export default class GoogleProvider extends BaseProvider {
       throw `Missing Api Key configuration for ${this.name} provider`;
     }
 
-    // Restrict Google to only gemini-2.5-pro
+    // Provide a minimal dynamic list including both Pro and Flash
     return [
       {
         name: 'gemini-2.5-pro',
         label: 'Gemini 2.5 Pro',
+        provider: this.name,
+        maxTokenAllowed: 128000,
+        maxCompletionTokens: 8192,
+      },
+      {
+        name: 'gemini-2.5-flash',
+        label: 'Gemini 2.5 Flash',
         provider: this.name,
         maxTokenAllowed: 128000,
         maxCompletionTokens: 8192,

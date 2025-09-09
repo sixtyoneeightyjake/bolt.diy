@@ -12,7 +12,7 @@ export default function SignOutButtonClient({ className = '' }: { className?: st
   return (
     <SignedIn>
       <button
-        className={`px-3 py-1.5 text-sm rounded-md border border-bolt-elements-borderColor hover:border-bolt-elements-borderColorActive text-bolt-elements-textPrimary ${className}`}
+        className={`px-3 py-1.5 text-sm rounded-md transition-colors bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 text-bolt-elements-textPrimary border border-bolt-elements-borderColor ${className}`}
         onClick={() => signOut({ redirectUrl })}
       >
         Sign out

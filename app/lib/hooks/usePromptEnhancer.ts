@@ -23,10 +23,22 @@ export function usePromptEnhancer() {
     setEnhancingPrompt(true);
     setPromptEnhanced(false);
 
+    // Prefer a fast, non-reasoning model for prompt enhancement
+    // 1) Try Google gemini-2.5-flash if available
+    // 2) Fallback to OpenAI gpt-4.1-mini
+    const fastProvider: ProviderInfo = ({ name: 'Google', staticModels: [] } as unknown) as ProviderInfo;
+    const fastModel = 'gemini-2.5-flash';
+    const miniProvider: ProviderInfo = ({ name: 'OpenAI', staticModels: [] } as unknown) as ProviderInfo;
+    const miniModel = 'gpt-4.1-mini';
+
+    const preferred = fastProvider;
+    const preferredModel = fastModel;
+
+    // Always use our preferred model for enhancement to keep it snappy
     const requestBody: any = {
       message: input,
-      model,
-      provider,
+      model: preferredModel,
+      provider: preferred,
     };
 
     if (apiKeys) {
@@ -38,49 +50,65 @@ export function usePromptEnhancer() {
       body: JSON.stringify(requestBody),
     });
 
-    const reader = response.body?.getReader();
+    if (!response.ok) {
+      // if unauthorized or other error, fall back to the UI-selected model/provider
+      const fallbackResp = await fetch('/api/enhancer', {
+        method: 'POST',
+        body: JSON.stringify({ message: input, model, provider, apiKeys }),
+      });
 
-    const originalInput = input;
-
-    if (reader) {
-      const decoder = new TextDecoder();
-
-      let _input = '';
-      let _error;
-
-      try {
-        setInput('');
-
-        while (true) {
-          const { value, done } = await reader.read();
-
-          if (done) {
-            break;
-          }
-
-          _input += decoder.decode(value);
-
-          logger.trace('Set input', _input);
-
-          setInput(_input);
-        }
-      } catch (error) {
-        _error = error;
-        setInput(originalInput);
-      } finally {
-        if (_error) {
-          logger.error(_error);
-        }
-
+      if (!fallbackResp.ok) {
         setEnhancingPrompt(false);
-        setPromptEnhanced(true);
-
-        setTimeout(() => {
-          setInput(_input);
-        });
+        setPromptEnhanced(false);
+        logger.error('Enhancer failed', { status: fallbackResp.status, statusText: fallbackResp.statusText });
+        return;
       }
+
+      const reader = fallbackResp.body?.getReader();
+      await streamIntoInput(reader, input, setInput);
+      return;
     }
+
+    const reader = response.body?.getReader();
+    await streamIntoInput(reader, input, setInput);
   };
+
+  async function streamIntoInput(
+    reader: ReadableStreamDefaultReader<Uint8Array> | undefined,
+    originalInput: string,
+    setInput: (value: string) => void,
+  ) {
+    if (!reader) {
+      setEnhancingPrompt(false);
+      setPromptEnhanced(false);
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    let _input = '';
+    let _error: unknown;
+
+    try {
+      setInput('');
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        _input += decoder.decode(value);
+        setInput(_input);
+      }
+    } catch (error) {
+      _error = error;
+      setInput(originalInput);
+    } finally {
+      if (_error) {
+        logger.error(_error);
+      }
+
+      setEnhancingPrompt(false);
+      setPromptEnhanced(true);
+      setTimeout(() => setInput(_input));
+    }
+  }
 
   return { enhancingPrompt, promptEnhanced, enhancePrompt, resetEnhancer };
 }

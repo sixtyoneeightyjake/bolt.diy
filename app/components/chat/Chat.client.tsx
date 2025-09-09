@@ -242,17 +242,19 @@ export const ChatImpl = memo(
         logger.debug('Finished streaming');
 
         try {
-          // Optional: hard redirect after the first response so the chat route loader runs
+          // Optional: hard redirect once after the first response so the chat route loader runs
           const hardRedirectEnabled = ((import.meta as any)?.env?.VITE_HARD_REDIRECT_AFTER_FIRST_RESPONSE ?? 'true') !== 'false';
-          // Detect if we started on index and URL was replaced to /chat/<id>
-          const startedOnIndex = (window as any)?.__boltStartedOnIndex ?? (window.location?.pathname === '/');
-          (window as any).__boltStartedOnIndex = startedOnIndex; // cache for subsequent calls
+          const path = window.location?.pathname || '';
 
-          if (hardRedirectEnabled && startedOnIndex && window.location.pathname.startsWith('/chat/')) {
-            // Force a real navigation to trigger route loader and persistence hook with id
-            setTimeout(() => {
-              window.location.href = window.location.href;
-            }, 0);
+          if (hardRedirectEnabled && path.startsWith('/chat/')) {
+            const key = `__boltHardRedirect:${path}`;
+
+            if (!sessionStorage.getItem(key)) {
+              sessionStorage.setItem(key, '1');
+              setTimeout(() => {
+                window.location.href = window.location.href;
+              }, 0);
+            }
           }
         } catch {
           // no-op

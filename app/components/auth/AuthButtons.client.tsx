@@ -26,7 +26,20 @@ export function UserButtonWithRedirect() {
   const href = useMemo(() => buildSignInUrl(), []);
   return (
     <SignedIn>
-      <UserButton afterSignOutUrl={href} />
+      <UserButton
+        afterSignOutUrl={href}
+        appearance={{
+          elements: {
+            userButtonBox: 'bg-transparent',
+            userButtonOuterIdentifier: 'text-bolt-elements-textSecondary',
+            userButtonTrigger:
+              'rounded-md px-2 py-1 bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor',
+            userButtonPopoverCard: 'bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor',
+            userPreviewMainIdentifier: 'text-bolt-elements-textPrimary',
+            userPreviewSecondaryIdentifier: 'text-bolt-elements-textSecondary',
+          },
+        }}
+      />
     </SignedIn>
   );
 }
