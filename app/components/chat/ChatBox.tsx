@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ClientOnly } from 'remix-utils/client-only';
 import { classNames } from '~/utils/classNames';
 import { PROVIDER_LIST } from '~/utils/constants';
@@ -55,6 +55,7 @@ interface ChatBoxProps {
   handleInputChange?: ((event: React.ChangeEvent<HTMLTextAreaElement>) => void) | undefined;
   handleStop?: (() => void) | undefined;
   enhancingPrompt?: boolean | undefined;
+  promptEnhanced?: boolean | undefined;
   enhancePrompt?: (() => void) | undefined;
   chatMode?: 'discuss' | 'build';
   setChatMode?: (mode: 'discuss' | 'build') => void;
@@ -77,6 +78,7 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
          */
       )}
     >
+      <ChatBoxEnhanceToasts enhancingPrompt={props.enhancingPrompt} promptEnhanced={props.promptEnhanced} />
       <svg className={classNames(styles.PromptEffectContainer)}>
         <defs>
           <linearGradient
@@ -272,7 +274,6 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
               className={classNames('transition-all', props.enhancingPrompt ? 'opacity-100' : '')}
               onClick={() => {
                 props.enhancePrompt?.();
-                toast.success('Prompt enhanced!');
               }}
             >
               {props.enhancingPrompt ? (
@@ -281,6 +282,12 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
                 <div className="i-bolt:stars text-xl"></div>
               )}
             </IconButton>
+            {props.enhancingPrompt && (
+              <span className="ml-1 text-xs text-bolt-elements-textTertiary flex items-center gap-1" aria-live="polite">
+                <span className="i-svg-spinners:3-dots-fade text-bolt-elements-loader-progress" />
+                Mojo is enhancing your prompt...
+              </span>
+            )}
 
             <SpeechRecognitionButton
               isListening={props.isListening}
@@ -334,4 +341,28 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
       </div>
     </div>
   );
+};
+
+// Toast feedback for enhance lifecycle
+export const ChatBoxEnhanceToasts: React.FC<Pick<ChatBoxProps, 'enhancingPrompt' | 'promptEnhanced'>> = ({
+  enhancingPrompt,
+  promptEnhanced,
+}) => {
+  useEffect(() => {
+    const toastId = 'enhance-status';
+
+    if (enhancingPrompt) {
+      toast.dismiss(toastId);
+      toast.info('Mojo is enhancing your prompt...', { toastId, autoClose: false, closeOnClick: false });
+    } else {
+      // enhancement finished (either success or failure)
+      toast.dismiss(toastId);
+
+      if (promptEnhanced) {
+        toast.success('Enhanced prompt ready');
+      }
+    }
+  }, [enhancingPrompt, promptEnhanced]);
+
+  return null;
 };

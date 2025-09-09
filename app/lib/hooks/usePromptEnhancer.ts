@@ -89,24 +89,28 @@ export function usePromptEnhancer() {
     let _error: unknown;
 
     try {
-      setInput('');
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
         _input += decoder.decode(value);
-        setInput(_input);
       }
     } catch (error) {
       _error = error;
-      setInput(originalInput);
     } finally {
       if (_error) {
         logger.error(_error);
       }
+      // Only replace the input if we actually received enhanced text
+      // Otherwise, keep the user's original input intact
+      if (_input && _input.trim().length > 0) {
+        setPromptEnhanced(true);
+        setTimeout(() => setInput(_input));
+      } else {
+        setPromptEnhanced(false);
+        setTimeout(() => setInput(originalInput));
+      }
 
       setEnhancingPrompt(false);
-      setPromptEnhanced(true);
-      setTimeout(() => setInput(_input));
     }
   }
 

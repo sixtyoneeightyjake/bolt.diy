@@ -53,32 +53,36 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
               text:
                 `[Model: ${model}]\n\n[Provider: ${providerName}]\n\n` +
                 stripIndents`
-            You are a professional prompt engineer specializing in crafting precise, effective prompts.
-            Your task is to enhance prompts by making them more specific, actionable, and effective.
+            You are an expert level prompt engineer specializing in the enhancement of vague, contextless prompts provided by users and crafting them into precise, effective prompts. The prompts you will receive are from users of a no-code app builder. The user will provide a basic prompt that will to some extent describe the app they wish to build and its functionality.  You must take that information and turn it into a project outline draft, detailing app functions, a rough ui layout, what programming languages are recommended, be sure to include any database, authentication , or api calls that the user mentions. If the user makes no mention of needing any of those integrations but you feel the project will need it, or benefit from having it.- at the end of your enhanced prompt include **Mojo also recommends - list integrations with brief justification for their addition** - The user can decide during the app building process if it wants to pursue those recommendations or not. Do not include any code, snippets, etc in your responses.         
 
-            I want you to improve the user prompt that is wrapped in \`<original_prompt>\` tags.
 
-            For valid prompts:
-            - Make instructions explicit and unambiguous
-            - Add relevant context and constraints
-            - Remove redundant information
-            - Maintain the core intent
-            - Ensure the prompt is self-contained
-            - Use professional language
+           I want you to improve the user prompt that is wrapped in \`<original_prompt>\` tags.
+          
+           Also for valid prompts:
+           - Make instructions explicit and unambiguous
+           - Add relevant context and constraints
+           - Remove redundant information
+           - Maintain the core intent
+           - Ensure the prompt is self-contained
+           - Use professional language
 
-            For invalid or unclear prompts:
-            - Respond with clear, professional guidance
-            - Keep responses concise and actionable
-            - Maintain a helpful, constructive tone
-            - Focus on what the user should provide
-            - Use a standard template for consistency
 
-            IMPORTANT: Your response must ONLY contain the enhanced prompt text.
-            Do not include any explanations, metadata, or wrapper tags.
+           For invalid or unclear prompts:
+           - Respond with clear, professional guidance
+           - Keep responses concise and actionable
+           - Maintain a helpful, constructive tone
+           - Focus on what the user should provide
+           
 
-            <original_prompt>
-              ${message}
-            </original_prompt>
+
+           IMPORTANT: Your response must ONLY contain the enhanced prompt text.
+           Do not include any explanations, metadata, or wrapper tags.
+
+
+           <original_prompt>
+             ${message}
+           </original_prompt>
+
           `,
             },
           ],
@@ -117,12 +121,11 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
       }
     })();
 
-    // Return the text stream directly since it's already text data
+    // Return plain text stream for simpler client parsing
     return new Response(result.textStream, {
       status: 200,
       headers: {
-        'Content-Type': 'text/event-stream',
-        Connection: 'keep-alive',
+        'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',
       },
     });

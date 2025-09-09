@@ -101,6 +101,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       providerList,
       input = '',
       enhancingPrompt,
+      promptEnhanced,
       handleInputChange,
 
       // promptEnhanced,
@@ -458,6 +459,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   handleStop={handleStop}
                   handleSendMessage={handleSendMessage}
                   enhancingPrompt={enhancingPrompt}
+                  promptEnhanced={promptEnhanced}
                   enhancePrompt={enhancePrompt}
                   isListening={isListening}
                   startListening={startListening}
