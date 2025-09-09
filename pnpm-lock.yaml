@@ -149,6 +149,9 @@ importers:
       '@remix-run/cloudflare-pages':
         specifier: ^2.15.2
         version: 2.16.8(@cloudflare/workers-types@4.20250722.0)(typescript@5.8.3)
+      '@remix-run/express':
+        specifier: ^2.15.2
+        version: 2.16.8(express@4.21.2)(typescript@5.8.3)
       '@remix-run/node':
         specifier: ^2.15.2
         version: 2.16.8(typescript@5.8.3)
@@ -209,6 +212,9 @@ importers:
       electron-updater:
         specifier: ^6.3.9
         version: 6.6.2
+      express:
+        specifier: ^4.21.2
+        version: 4.21.2
       file-saver:
         specifier: ^2.0.5
         version: 2.0.5

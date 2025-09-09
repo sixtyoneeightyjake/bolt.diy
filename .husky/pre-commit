@@ -13,6 +13,15 @@ if ! command -v pnpm >/dev/null 2>&1; then
     exit 1
 fi
 
+# Ensure dev dependencies (tsc, eslint) are available even if NODE_ENV=production
+if [ ! -x node_modules/.bin/tsc ] || [ ! -x node_modules/.bin/eslint ]; then
+    echo "Dev tools missing; installing dev dependencies (one-time)…"
+    NODE_ENV=development pnpm install --include=dev --silent || {
+        echo "❌ Failed to install dev dependencies needed for checks.";
+        exit 1;
+    }
+fi
+
 # Run typecheck
 echo "Running typecheck..."
 if ! pnpm typecheck; then
