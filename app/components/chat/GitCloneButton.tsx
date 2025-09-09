@@ -19,7 +19,8 @@ import GitHubConnection from '~/components/@settings/tabs/connections/github/Git
 import { useAuth } from '@clerk/remix';
 import { useStore } from '@nanostores/react';
 import { githubConnectionAtom, githubConnectionStore, isGitHubConnected } from '~/lib/stores/githubConnection';
-import { SIGN_IN_URL } from '~/utils/auth.config';
+
+// Use in-app sign-in route
 
 const IGNORE_PATTERNS = [
   'node_modules/**',
@@ -172,20 +173,12 @@ ${escapeBoltTags(file.content)}
     }
   };
 
-  const buildSignInUrl = () => {
-    if (typeof window === 'undefined') {
-      return SIGN_IN_URL;
-    }
-
-    const url = new URL(SIGN_IN_URL);
-    url.searchParams.set('redirect_url', `${window.location.origin}/`);
-
-    return url.toString();
-  };
+  const buildSignInUrl = () => '/sign-in';
 
   const buildManageConnectionsUrl = () => {
     try {
-      const base = new URL(SIGN_IN_URL);
+      const signInUrl = buildSignInUrl();
+      const base = new URL(signInUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
 
       // Hosted Clerk typically exposes user profile at /user
       base.pathname = '/user';
@@ -193,7 +186,7 @@ ${escapeBoltTags(file.content)}
 
       return base.toString();
     } catch {
-      return SIGN_IN_URL;
+      return buildSignInUrl();
     }
   };
 
@@ -252,11 +245,9 @@ ${escapeBoltTags(file.content)}
       setAttemptedImport(true);
 
       if (!isSignedIn) {
-        // Redirect to sign-in with redirect back
+        // Redirect to in-app sign-in; afterSignInUrl in Clerk config will return to '/'
         if (typeof window !== 'undefined') {
-          const url = new URL(SIGN_IN_URL);
-          url.searchParams.set('redirect_url', `${window.location.origin}/`);
-          window.location.href = url.toString();
+          window.location.href = '/sign-in';
         }
 
         return;
