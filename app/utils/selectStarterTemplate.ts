@@ -96,10 +96,8 @@ export const selectStarterTemplate = async (options: { message: string; model: s
   });
 
   if (response.status === 401) {
-    const { SIGN_IN_URL } = await import('~/utils/auth.config');
-
     if (typeof window !== 'undefined') {
-      window.location.href = SIGN_IN_URL;
+      window.location.href = '/sign-in';
       return { template: 'blank', title: '' };
     }
   }
@@ -263,3 +261,4 @@ IMPORTANT: Dont Forget to install the dependencies before running the app by usi
     userMessage,
   };
 }
+
