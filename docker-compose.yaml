@@ -7,8 +7,8 @@ services:
       target: bolt-ai-production
     ports:
       - '5173:5173'
-    env_file: 
-      - '.env'
+    env_file:
+      - '.env.production'
       - '.env.local'
     environment:
       - NODE_ENV=production
@@ -25,6 +25,7 @@ services:
     command: pnpm run dockerstart
     profiles:
       - production
+      - production-tls
 
   nginx:
     image: nginx:alpine
@@ -32,7 +33,6 @@ services:
       - app-prod
     ports:
       - '80:80'
-      # - '443:443'  # Uncomment after adding TLS certs
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - certbot-etc:/etc/letsencrypt
@@ -42,6 +42,24 @@ services:
       - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
     profiles:
       - production
+
+  # TLS-enabled nginx. Use after certificates are issued.
+  nginx-tls:
+    image: nginx:alpine
+    depends_on:
+      - app-prod
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/default.ssl.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot-etc:/etc/letsencrypt
+      - certbot-web:/var/www/certbot
+    restart: unless-stopped
+    environment:
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+    profiles:
+      - production-tls
 
   certbot:
     image: certbot/certbot:latest
@@ -53,6 +71,7 @@ services:
       sh -c 'trap exit TERM; while :; do sleep 12h & wait $$!; certbot renew --webroot -w /var/www/certbot --quiet; done'
     profiles:
       - production
+      - production-tls
 
   app-dev:
     image: bolt-ai:development
