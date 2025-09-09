@@ -13,14 +13,21 @@ console.log(`🚀 Starting Bolt.diy production server on port ${PORT}...`);
 // Resolve local wrangler binary for systemd/non-interactive environments
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const localWrangler = path.resolve(__dirname, 'node_modules', '.bin', process.platform === 'win32' ? 'wrangler.cmd' : 'wrangler');
+const localWrangler = path.resolve(
+  __dirname,
+  'node_modules',
+  '.bin',
+  process.platform === 'win32' ? 'wrangler.cmd' : 'wrangler',
+);
 const wranglerCmd = existsSync(localWrangler) ? localWrangler : 'wrangler';
 
 // Get bindings and start wrangler in production mode
 let bindings = process.env.BINDINGS || '';
+
 if (!bindings) {
   try {
     const script = path.resolve(__dirname, 'bindings.sh');
+
     if (existsSync(script)) {
       bindings = execSync(script, { cwd: __dirname, encoding: 'utf8' }).trim();
     }
@@ -28,6 +35,7 @@ if (!bindings) {
     console.warn('Failed to compute wrangler bindings from bindings.sh; continuing without.', e?.message || e);
   }
 }
+
 const cmd = `${JSON.stringify(wranglerCmd)} pages dev ./build/client ${bindings} --ip 0.0.0.0 --port ${PORT} --no-show-interactive-dev-session --compatibility-date=2024-01-01`;
 
 const child = spawn(cmd, {
