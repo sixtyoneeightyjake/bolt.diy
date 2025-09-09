@@ -1,16 +1,8 @@
 import { SignedIn, useClerk } from '@clerk/remix';
 import { useMemo } from 'react';
-import { SIGN_IN_URL } from '~/utils/auth.config';
 
 function buildSignInUrl() {
-  try {
-    const url = new URL(SIGN_IN_URL);
-    url.searchParams.set('redirect_url', typeof window !== 'undefined' ? `${window.location.origin}/` : '/');
-
-    return url.toString();
-  } catch {
-    return SIGN_IN_URL;
-  }
+  return '/sign-in';
 }
 
 export default function SignOutButtonClient({ className = '' }: { className?: string }) {
