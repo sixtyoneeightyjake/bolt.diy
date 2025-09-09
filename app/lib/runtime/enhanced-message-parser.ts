@@ -159,6 +159,57 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
       return wrapped;
     });
 
+    // Fallback: wrap any remaining fenced code blocks generically to ensure
+    // code lands in the workbench rather than flooding the chat UI.
+    const genericCodeBlock = /```([\w\-]*)\n([\s\S]*?)```/g;
+
+    enhanced = enhanced.replace(genericCodeBlock, (match, lang, code) => {
+      const blockHash = this._hashBlock(match);
+
+      if (processed.has(blockHash)) {
+        return match;
+      }
+
+      processed.add(blockHash);
+
+      const extMap: Record<string, string> = {
+        javascript: 'js',
+        js: 'js',
+        typescript: 'ts',
+        ts: 'ts',
+        jsx: 'jsx',
+        tsx: 'tsx',
+        python: 'py',
+        py: 'py',
+        html: 'html',
+        css: 'css',
+        scss: 'scss',
+        sass: 'sass',
+        less: 'less',
+        json: 'json',
+        yaml: 'yaml',
+        yml: 'yml',
+        md: 'md',
+        markdown: 'md',
+        sh: 'sh',
+        bash: 'sh',
+        zsh: 'sh',
+        sql: 'sql',
+        vue: 'vue',
+        svelte: 'svelte',
+        xml: 'xml',
+      };
+
+      const normalized = String(lang || '').toLowerCase();
+      const ext = extMap[normalized] || 'txt';
+      const filePath = `/code-${Date.now()}.${ext}`;
+
+      const artifactId = `artifact-${messageId}-${this._artifactCounter++}`;
+      const wrapped = this._wrapInArtifact(artifactId, filePath, code);
+      logger.debug(`Auto-wrapped generic code block as file: ${filePath}`);
+      return wrapped;
+    });
+
     return enhanced;
   }
 
