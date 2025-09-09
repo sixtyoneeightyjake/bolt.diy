@@ -47,8 +47,9 @@ export const links: LinksFunction = () => [
 // Initialize Clerk SSR auth (Cloudflare-compatible)
 export const loader = async (args: LoaderFunctionArgs) => {
   const disable = (typeof process !== 'undefined' && process.env?.DISABLE_CLERK_SSR === '1') || false;
-  const hasClerk =
-    typeof process !== 'undefined' && !!process.env?.CLERK_PUBLISHABLE_KEY && !!process.env?.CLERK_SECRET_KEY;
+  const env: any =
+    (args as any)?.context?.cloudflare?.env || (typeof process !== 'undefined' ? process.env : undefined);
+  const hasClerk = !!env?.CLERK_PUBLISHABLE_KEY && !!env?.CLERK_SECRET_KEY;
 
   if (disable || !hasClerk) {
     return json({ auth: 'disabled' });

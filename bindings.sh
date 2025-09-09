@@ -31,21 +31,39 @@ append_env_file() {
   done <"$f"
 }
 
-# Prefer .env then override with .env.local by ordering (later wins)
+# Prefer .env.production, then .env, then override with .env.local by ordering (later wins)
+append_env_file .env.production || true
 append_env_file .env || true
 append_env_file .env.local || true
 
-if [ -z "${bindings}" ]; then
-  # Fallback to current environment for variables declared in worker-configuration.d.ts
-  while IFS= read -r varname; do
-    # Safely expand env var by name
-    val=$(eval "printf '%s' \"\
+# Always ensure critical runtime variables from current environment are added
+# 1) Variables declared in worker-configuration.d.ts
+while IFS= read -r varname; do
+  val=$(eval "printf '%s' \"\
 \${$varname:-}\"")
-    if [ -n "${val}" ]; then
-      bindings+=" --binding ${varname}=${val}"
-    fi
-  done < <(extract_env_vars)
-fi
+  if [ -n "${val}" ]; then
+    bindings+=" --binding ${varname}=${val}"
+  fi
+done < <(extract_env_vars)
+
+# 2) Auth and client config commonly needed at runtime
+for varname in \
+  CLERK_PUBLISHABLE_KEY \
+  CLERK_SECRET_KEY \
+  VITE_CLERK_SIGN_IN_URL \
+  VITE_CLERK_SIGN_UP_URL \
+  VITE_GITHUB_ACCESS_TOKEN \
+  VITE_GITHUB_TOKEN_TYPE \
+  VITE_LOG_LEVEL \
+  CONTEXT7_API_KEY \
+  EXA_API_KEY
+do
+  val=$(eval "printf '%s' \"\
+\${$varname:-}\"")
+  if [ -n "${val}" ]; then
+    bindings+=" --binding ${varname}=${val}"
+  fi
+done
 
 # Trim leading space
 bindings="${bindings# }"

@@ -84,7 +84,7 @@ services:
       - SERVER_NAME=mojocode.sixtyoneeighty.com
       - LETSENCRYPT_EMAIL=admin@mojocode.sixtyoneeighty.com
     entrypoint: >
-      sh -c 'certbot certonly --webroot -w /var/www/certbot -d "$SERVER_NAME" --email "$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email'
+      sh -c 'certbot certonly --webroot -w /var/www/certbot -d "$$SERVER_NAME" --email "$$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email'
     profiles:
       - production-init
 
