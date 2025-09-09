@@ -1,11 +1,14 @@
 import React from 'react';
 
 const EXAMPLE_PROMPTS = [
-  { text: 'Create a mobile app about clowns for hire' },
-  { text: 'Build a todo app with annoying alarms and alerts' },
-  { text: 'Build a Mojo is awesome blog site' },
-  { text: 'Create a site to generate random app ideas for no-code app builders' },
-  { text: 'Make a space invaders game' },
+  {
+    text:
+      'Create a responsive web app (Vite + React) about clowns for hire. Use <boltArtifact> file actions and start the dev server.',
+  },
+  { text: 'Build a todo app with annoying alarms and alerts (web) using Vite. Use <boltArtifact> file actions.' },
+  { text: 'Build a "Mojo is awesome" blog site with a homepage and posts (web) using Vite.' },
+  { text: 'Create a site to generate random app ideas for no-code builders (web). Use <boltArtifact> file actions.' },
+  { text: 'Make a space invaders game (web) with HTML/CSS/JS only.' },
   { text: 'Make a Tic Tac Toe game in html, css and js only' },
 ];
 

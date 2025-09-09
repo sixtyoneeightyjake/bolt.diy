@@ -22,7 +22,13 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
 
     // If no artifacts were detected, check for code blocks that should be files
     if (!this._hasDetectedArtifacts(input)) {
-      const enhancedInput = this._detectAndWrapCodeBlocks(messageId, input);
+      let enhancedInput = this._detectAndWrapCodeBlocks(messageId, input);
+
+      // As a safe enhancement, detect raw JSON blobs that clearly look like
+      // package.json or app.json (Expo) even if not fenced in backticks
+      // This only triggers for top-level JSON objects with well-known keys
+      // to avoid false positives.
+      enhancedInput = this._detectAndWrapRawJson(messageId, enhancedInput);
 
       if (enhancedInput !== input) {
         // Reset and reparse with enhanced input
@@ -154,6 +160,112 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
     });
 
     return enhanced;
+  }
+
+  // Detect top-level JSON objects for package.json or app.json (Expo)
+  private _detectAndWrapRawJson(messageId: string, input: string): string {
+    const processed = this._processedCodeBlocks.get(messageId)!;
+
+    // Quickly bail if no curly braces present
+    if (!input.includes('{') || !input.includes('}')) {
+      return input;
+    }
+
+    const results: Array<{ start: number; end: number; content: string; target: string }> = [];
+
+    // Walk the string and collect balanced top-level JSON objects up to a reasonable size
+    const maxScan = Math.min(input.length, 100000);
+    for (let i = 0; i < maxScan; i++) {
+      if (input[i] !== '{') continue;
+
+      // Try to extract a balanced JSON block starting at i
+      const end = this._findBalancedJsonEnd(input, i);
+      if (end === -1) continue;
+
+      const raw = input.slice(i, end + 1).trim();
+
+      // Heuristic size bounds to avoid giant captures
+      if (raw.length < 40 || raw.length > 20000) {
+        i = end; // advance
+        continue;
+      }
+
+      try {
+        const obj = JSON.parse(raw);
+        const isPackage = obj && typeof obj === 'object' && obj.name && obj.version && (obj.scripts || obj.dependencies || obj.devDependencies);
+        const isExpoApp = obj && typeof obj === 'object' && obj.expo && typeof obj.expo === 'object';
+
+        if (!isPackage && !isExpoApp) {
+          i = end;
+          continue;
+        }
+
+        const blockHash = this._hashBlock(raw);
+        if (processed.has(blockHash)) {
+          i = end;
+          continue;
+        }
+
+        processed.add(blockHash);
+
+        const target = isPackage ? '/package.json' : '/app.json';
+        results.push({ start: i, end, content: JSON.stringify(obj, null, 2), target });
+        i = end;
+      } catch {
+        // not valid JSON
+        i = end;
+        continue;
+      }
+    }
+
+    if (!results.length) {
+      return input;
+    }
+
+    // Apply replacements from the end to not disturb indices
+    let out = input;
+    for (let r = results.length - 1; r >= 0; r--) {
+      const { start, end, content, target } = results[r];
+      const artifactId = `artifact-${messageId}-${this._artifactCounter++}`;
+      const wrapped = this._wrapInArtifact(artifactId, target, content);
+      out = out.slice(0, start) + wrapped + out.slice(end + 1);
+    }
+
+    return out;
+  }
+
+  private _findBalancedJsonEnd(input: string, start: number): number {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+
+    for (let i = start; i < input.length; i++) {
+      const ch = input[i];
+
+      if (inString) {
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (ch === '\\') {
+          escape = true;
+          continue;
+        }
+        if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+      if (ch === '{') depth++;
+      if (ch === '}') depth--;
+      if (depth === 0) return i;
+    }
+    return -1;
   }
 
   private _wrapInArtifact(artifactId: string, filePath: string, content: string): string {

@@ -207,7 +207,7 @@ export const ChatImpl = memo(
 
     const [input, setInput] = useState<string>(Cookies.get(PROMPT_COOKIE_KEY) || '');
 
-    const {
+  const {
       messages,
       status,
       sendMessage: sendMessageCore,
@@ -240,6 +240,23 @@ export const ChatImpl = memo(
       },
       onFinish: () => {
         logger.debug('Finished streaming');
+
+        try {
+          // Optional: hard redirect after the first response so the chat route loader runs
+          const hardRedirectEnabled = ((import.meta as any)?.env?.VITE_HARD_REDIRECT_AFTER_FIRST_RESPONSE ?? 'true') !== 'false';
+          // Detect if we started on index and URL was replaced to /chat/<id>
+          const startedOnIndex = (window as any)?.__boltStartedOnIndex ?? (window.location?.pathname === '/');
+          (window as any).__boltStartedOnIndex = startedOnIndex; // cache for subsequent calls
+
+          if (hardRedirectEnabled && startedOnIndex && window.location.pathname.startsWith('/chat/')) {
+            // Force a real navigation to trigger route loader and persistence hook with id
+            setTimeout(() => {
+              window.location.href = window.location.href;
+            }, 0);
+          }
+        } catch {
+          // no-op
+        }
       },
     });
 
