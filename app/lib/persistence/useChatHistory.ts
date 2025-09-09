@@ -374,12 +374,31 @@ ${value.content}
 
 function navigateChat(nextId: string) {
   /**
-   * FIXME: Using the intended navigate function causes a rerender for <Chat /> that breaks the app.
-   *
-   * `navigate(`/chat/${nextId}`, { replace: true });`
+   * Prefer immediate hard navigation to the chat route once an ID is assigned,
+   * so the route loader runs and the full chat/workbench UI initializes.
+   * Can be disabled via VITE_HARD_REDIRECT_ON_URL_ASSIGN=false for soft updates only.
    */
   const url = new URL(window.location.href);
-  url.pathname = `/chat/${nextId}`;
+  const targetPath = `/chat/${nextId}`;
 
+  if (url.pathname === targetPath) {
+    return;
+  }
+
+  url.pathname = targetPath;
+
+  const hardOnAssign = ((import.meta as any)?.env?.VITE_HARD_REDIRECT_ON_URL_ASSIGN ?? 'true') !== 'false';
+
+  if (hardOnAssign) {
+    try {
+      // Mark we’ve already hard-redirected for this path to prevent the onFinish handler from reloading again
+      sessionStorage.setItem(`__boltHardRedirect:${targetPath}`, '1');
+    } catch {}
+    window.location.assign(url.toString());
+    
+    return;
+  }
+
+  // Soft update only
   window.history.replaceState({}, '', url);
 }

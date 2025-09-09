@@ -11,7 +11,12 @@ export async function action(args: ActionFunctionArgs) {
 const logger = createScopedLogger('api.enhancher');
 
 async function enhancerAction({ context, request }: ActionFunctionArgs) {
-  const { message, model, provider } = await request.json<{
+  const {
+    message,
+    model,
+    provider,
+    apiKeys: bodyApiKeys,
+  } = await request.json<{
     message: string;
     model: string;
     provider: ProviderInfo;
@@ -36,7 +41,7 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
   }
 
   const cookieHeader = request.headers.get('Cookie');
-  const apiKeys = getApiKeysFromCookie(cookieHeader);
+  const apiKeys = bodyApiKeys || getApiKeysFromCookie(cookieHeader);
   const providerSettings = getProviderSettingsFromCookie(cookieHeader);
 
   try {

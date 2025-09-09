@@ -303,6 +303,13 @@ export const ChatImpl = memo(
       });
     }, [messages, status, parseMessages]);
 
+    // Ensure the workbench/chat layout opens as soon as a chat starts
+    useEffect(() => {
+      if (!chatStarted && (status === 'submitted' || status === 'streaming')) {
+        runAnimation();
+      }
+    }, [status, chatStarted]);
+
     const scrollTextArea = () => {
       const textarea = textareaRef.current;
 
@@ -360,6 +367,13 @@ export const ChatImpl = memo(
         if (errorInfo.statusCode === 401 || errorInfo.message.toLowerCase().includes('api key')) {
           errorType = 'authentication';
           title = 'Authentication Error';
+
+          try {
+            // If not authenticated, send users to sign-in to unblock chat
+            if (errorInfo.statusCode === 401 && /authentication required/i.test(errorInfo.message || '')) {
+              window.location.href = '/sign-in';
+            }
+          } catch {}
         } else if (errorInfo.statusCode === 429 || errorInfo.message.toLowerCase().includes('rate limit')) {
           errorType = 'rate_limit';
           title = 'Rate Limit Exceeded';
@@ -477,6 +491,11 @@ export const ChatImpl = memo(
         enhancingPrompt={enhancingPrompt}
         promptEnhanced={promptEnhanced}
         sendMessage={(event, messageInput) => {
+          // Open the workbench layout on first send
+          if (!chatStarted) {
+            runAnimation();
+          }
+
           const textToSend = messageInput ?? input;
           sendMessageCore({ text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${textToSend}` });
           setInput('');

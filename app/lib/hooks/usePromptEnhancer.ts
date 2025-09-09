@@ -23,13 +23,12 @@ export function usePromptEnhancer() {
     setEnhancingPrompt(true);
     setPromptEnhanced(false);
 
-    // Prefer a fast, non-reasoning model for prompt enhancement
-    // 1) Try Google gemini-2.5-flash if available
-    // 2) Fallback to OpenAI gpt-4.1-mini
-    const fastProvider: ProviderInfo = ({ name: 'Google', staticModels: [] } as unknown) as ProviderInfo;
+    /*
+     * Prefer a fast, non-reasoning model for prompt enhancement
+     * 1) Try Google gemini-2.5-flash if available
+     */
+    const fastProvider: ProviderInfo = ({ name: 'Google', staticModels: [] } as unknown as ProviderInfo);
     const fastModel = 'gemini-2.5-flash';
-    const miniProvider: ProviderInfo = ({ name: 'OpenAI', staticModels: [] } as unknown) as ProviderInfo;
-    const miniModel = 'gpt-4.1-mini';
 
     const preferred = fastProvider;
     const preferredModel = fastModel;
@@ -47,6 +46,7 @@ export function usePromptEnhancer() {
 
     const response = await fetch('/api/enhancer', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
     });
 
@@ -54,12 +54,15 @@ export function usePromptEnhancer() {
       // if unauthorized or other error, fall back to the UI-selected model/provider
       const fallbackResp = await fetch('/api/enhancer', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: input, model, provider, apiKeys }),
       });
 
       if (!fallbackResp.ok) {
         setEnhancingPrompt(false);
         setPromptEnhanced(false);
+        // Preserve original input and surface an error in logs
+        setTimeout(() => setInput(input));
         logger.error('Enhancer failed', { status: fallbackResp.status, statusText: fallbackResp.statusText });
         return;
       }
@@ -81,6 +84,7 @@ export function usePromptEnhancer() {
     if (!reader) {
       setEnhancingPrompt(false);
       setPromptEnhanced(false);
+
       return;
     }
 
@@ -91,7 +95,9 @@ export function usePromptEnhancer() {
     try {
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          break;
+        }
         _input += decoder.decode(value);
       }
     } catch (error) {
@@ -100,8 +106,10 @@ export function usePromptEnhancer() {
       if (_error) {
         logger.error(_error);
       }
-      // Only replace the input if we actually received enhanced text
-      // Otherwise, keep the user's original input intact
+      /*
+       * Only replace the input if we actually received enhanced text.
+       * Otherwise, keep the user's original input intact.
+       */
       if (_input && _input.trim().length > 0) {
         setPromptEnhanced(true);
         setTimeout(() => setInput(_input));
