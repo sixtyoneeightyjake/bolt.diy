@@ -5,7 +5,7 @@ import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ClientOnly } from 'remix-utils/client-only';
@@ -72,7 +72,7 @@ export const Head = createHead(() => (
   </>
 ));
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children }: { children: ReactNode }) {
   const theme = useStore(themeStore);
 
   useEffect(() => {
@@ -94,13 +94,15 @@ function App() {
   const theme = useStore(themeStore);
 
   useEffect(() => {
+    // Prefer User-Agent Client Hints if available; fall back to userAgent string
+    const platform = (navigator as any).userAgentData?.platform ?? navigator.userAgent;
     logStore.logSystem('Application initialized', {
       theme,
-      platform: navigator.platform,
+      platform,
       userAgent: navigator.userAgent,
       timestamp: new Date().toISOString(),
     });
-  }, []);
+  }, [theme]);
 
   return (
     <Layout>
@@ -111,6 +113,7 @@ function App() {
 
 // Wrap the Remix app with Clerk provider
 export default ClerkApp(App, {
+  // Prefer in-app auth routes for consistent redirects & cookies
   signInUrl: SIGN_IN_URL,
   signUpUrl: SIGN_UP_URL,
   afterSignInUrl: '/',
@@ -121,3 +124,4 @@ export default ClerkApp(App, {
  * Provide Clerk-aware error boundary
  * Use Remix's default ErrorBoundary or add a custom one if desired
  */
+
