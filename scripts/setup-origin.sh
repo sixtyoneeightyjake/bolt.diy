@@ -215,7 +215,7 @@ Environment=PATH=${NODE_DIR}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/
 # Optional: load secrets if present
 EnvironmentFile=-${APP_DIR}/.env
 EnvironmentFile=-${APP_DIR}/.env.local
-ExecStartPre=${PNPM_BIN} install --frozen-lockfile --prod=false
+ExecStartPre=${PNPM_BIN} install --no-frozen-lockfile --prod=false
 ExecStartPre=${PNPM_BIN} run build
 ExecStart=${PNPM_BIN} run start:prod
 Restart=always
