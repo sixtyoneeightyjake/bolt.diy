@@ -159,6 +159,23 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
       return wrapped;
     });
 
+    // Detect code fences whose info string includes a filename
+    // Example: ```tsx src/App.tsx\n...```
+    const infoWithFilename = /```(\w+)\s+([\/\w\-\.]+\.\w+)\n([\s\S]*?)```/gi;
+    enhanced = enhanced.replace(infoWithFilename, (match, lang, filePath, code) => {
+      const blockHash = this._hashBlock(match);
+      if (processed.has(blockHash)) return match;
+      processed.add(blockHash);
+
+      filePath = this._normalizeFilePath(filePath);
+      if (!this._isValidFilePath(filePath)) return match;
+
+      const artifactId = `artifact-${messageId}-${this._artifactCounter++}`;
+      const wrapped = this._wrapInArtifact(artifactId, filePath, code);
+      logger.debug(`Auto-wrapped code block (info filename) as file: ${filePath}`);
+      return wrapped;
+    });
+
     // Fallback: wrap any remaining fenced code blocks generically to ensure
     // code lands in the workbench rather than flooding the chat UI.
     const genericCodeBlock = /```([\w\-]*)\n([\s\S]*?)```/g;
