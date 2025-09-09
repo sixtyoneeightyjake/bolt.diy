@@ -207,7 +207,7 @@ export const ChatImpl = memo(
 
     const [input, setInput] = useState<string>(Cookies.get(PROMPT_COOKIE_KEY) || '');
 
-  const {
+    const {
       messages,
       status,
       sendMessage: sendMessageCore,
@@ -243,7 +243,8 @@ export const ChatImpl = memo(
 
         try {
           // Optional: hard redirect once after the first response so the chat route loader runs
-          const hardRedirectEnabled = ((import.meta as any)?.env?.VITE_HARD_REDIRECT_AFTER_FIRST_RESPONSE ?? 'true') !== 'false';
+          const hardRedirectEnabled =
+            ((import.meta as any)?.env?.VITE_HARD_REDIRECT_AFTER_FIRST_RESPONSE ?? 'true') !== 'false';
           const path = window.location?.pathname || '';
 
           if (hardRedirectEnabled && path.startsWith('/chat/')) {
