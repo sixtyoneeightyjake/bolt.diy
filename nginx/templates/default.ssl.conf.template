@@ -1,0 +1,56 @@
+upstream bolt_app {
+  server app-prod:5173;
+}
+
+server {
+  listen 80;
+  server_name ${SERVER_NAME};
+
+  # ACME HTTP-01 challenge endpoint for certbot webroot
+  location /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+    try_files $uri =404;
+  }
+
+  # Redirect all other HTTP requests to HTTPS
+  location / {
+    return 301 https://$host$request_uri;
+  }
+}
+
+server {
+  listen 443 ssl http2;
+  server_name ${SERVER_NAME};
+
+  ssl_certificate /etc/letsencrypt/live/${SERVER_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/${SERVER_NAME}/privkey.pem;
+  include /etc/letsencrypt/options-ssl-nginx.conf;
+  ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+  # Proxy to the app
+  location / {
+    proxy_pass http://bolt_app;
+    proxy_http_version 1.1;
+
+    # Standard proxy headers
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # Long timeouts for streaming (SSE) and long responses
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+
+    # Disable buffering for SSE
+    proxy_buffering off;
+    chunked_transfer_encoding off;
+
+    # WebSocket upgrade headers
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+
+  client_max_body_size 25m;
+}
+

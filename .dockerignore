@@ -12,6 +12,8 @@ README.md
 
 # Ignore environment examples and sensitive info
 .env
+.env.production
+.env.*
 *.local
 *.example
 

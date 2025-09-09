@@ -15,8 +15,6 @@ services:
       - COMPOSE_PROFILES=production
       # No strictly needed but serving as hints for Coolify
       - PORT=5173
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}
       - VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
@@ -34,12 +32,13 @@ services:
     ports:
       - '80:80'
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/templates/default.conf.template:/etc/nginx/templates/default.conf.template:ro
       - certbot-etc:/etc/letsencrypt
       - certbot-web:/var/www/certbot
     restart: unless-stopped
     environment:
-      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+      - SERVER_NAME=mojocode.sixtyoneeighty.com
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d
     profiles:
       - production
 
@@ -52,12 +51,13 @@ services:
       - '80:80'
       - '443:443'
     volumes:
-      - ./nginx/default.ssl.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/templates/default.ssl.conf.template:/etc/nginx/templates/default.conf.template:ro
       - certbot-etc:/etc/letsencrypt
       - certbot-web:/var/www/certbot
     restart: unless-stopped
     environment:
-      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+      - SERVER_NAME=mojocode.sixtyoneeighty.com
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d
     profiles:
       - production-tls
 
@@ -72,6 +72,21 @@ services:
     profiles:
       - production
       - production-tls
+
+  # One-shot cert issuance using your SERVER_NAME
+  certbot-init:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - certbot-web:/var/www/certbot
+    environment:
+      - SERVER_NAME=mojocode.sixtyoneeighty.com
+      - LETSENCRYPT_EMAIL=admin@mojocode.sixtyoneeighty.com
+    entrypoint: >
+      sh -c 'certbot certonly --webroot -w /var/www/certbot -d "$SERVER_NAME" --email "$LETSENCRYPT_EMAIL" --agree-tos --no-eff-email'
+    profiles:
+      - production-init
 
   app-dev:
     image: bolt-ai:development
@@ -88,17 +103,8 @@ services:
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
       - PORT=5173
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - HuggingFace_API_KEY=${HuggingFace_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}
-      - XAI_API_KEY=${XAI_API_KEY}
       - GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}
-      - OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL}
-      - TOGETHER_API_KEY=${TOGETHER_API_KEY}
-      - TOGETHER_API_BASE_URL=${TOGETHER_API_BASE_URL}
-      - AWS_BEDROCK_CONFIG=${AWS_BEDROCK_CONFIG}
       - VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
