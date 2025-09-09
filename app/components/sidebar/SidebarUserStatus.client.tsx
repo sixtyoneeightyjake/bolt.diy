@@ -1,17 +1,9 @@
 import { SignedIn, SignedOut, useUser } from '@clerk/remix';
 import { useMemo } from 'react';
-import { SIGN_IN_URL } from '~/utils/auth.config';
-import SignOutButtonClient from '~/components/auth/SignOutButton.client';
+import SignOutButton from '~/components/auth/SignOutButton.client';
 
 function buildSignInUrl() {
-  try {
-    const url = new URL(SIGN_IN_URL);
-    url.searchParams.set('redirect_url', typeof window !== 'undefined' ? `${window.location.origin}/` : '/');
-
-    return url.toString();
-  } catch {
-    return SIGN_IN_URL;
-  }
+  return '/sign-in';
 }
 
 export default function SidebarUserStatus() {
@@ -32,7 +24,7 @@ export default function SidebarUserStatus() {
             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
               <span className="w-2 h-2 rounded-full bg-green-500" />
               <span>Signed in</span>
-              <SignOutButtonClient className="ml-auto" />
+              <SignOutButton className="ml-auto" />
             </div>
           </div>
         </div>
