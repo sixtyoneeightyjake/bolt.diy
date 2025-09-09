@@ -181,6 +181,22 @@ if [[ -z "${PNPM_BIN}" ]]; then
   exit 1
 fi
 
+# Ensure Node is available to systemd (nvm installs are not on PATH by default under systemd)
+NODE_BIN=$(command -v node || true)
+if [[ -z "${NODE_BIN}" ]]; then
+  # Try to infer node bin dir from pnpm location
+  NODE_DIR="$(dirname "${PNPM_BIN}")"
+  NODE_BIN_CANDIDATE="${NODE_DIR}/node"
+  if [[ -x "${NODE_BIN_CANDIDATE}" ]]; then
+    NODE_BIN="${NODE_BIN_CANDIDATE}"
+  fi
+fi
+NODE_DIR="$(dirname "${NODE_BIN}")"
+if [[ -z "${NODE_DIR}" || ! -x "${NODE_BIN}" ]]; then
+  echo "Could not locate a usable node binary for systemd. Add Node to PATH or install a system node." >&2
+  exit 1
+fi
+
 echo "==> Creating systemd service: ${SERVICE_NAME}.service"
 cat >"/etc/systemd/system/${SERVICE_NAME}.service" <<UNIT
 [Unit]
@@ -194,6 +210,8 @@ Type=simple
 WorkingDirectory=${APP_DIR}
 Environment=NODE_ENV=production
 Environment=PORT=${APP_PORT}
+# Ensure node from nvm is available when using pnpm shim
+Environment=PATH=${NODE_DIR}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Optional: load secrets if present
 EnvironmentFile=-${APP_DIR}/.env
 EnvironmentFile=-${APP_DIR}/.env.local
