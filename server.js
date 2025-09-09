@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Production launcher: runs Wrangler Pages dev against the built client
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -17,7 +17,17 @@ const localWrangler = path.resolve(__dirname, 'node_modules', '.bin', process.pl
 const wranglerCmd = existsSync(localWrangler) ? localWrangler : 'wrangler';
 
 // Get bindings and start wrangler in production mode
-const bindings = process.env.BINDINGS || '';
+let bindings = process.env.BINDINGS || '';
+if (!bindings) {
+  try {
+    const script = path.resolve(__dirname, 'bindings.sh');
+    if (existsSync(script)) {
+      bindings = execSync(script, { cwd: __dirname, encoding: 'utf8' }).trim();
+    }
+  } catch (e) {
+    console.warn('Failed to compute wrangler bindings from bindings.sh; continuing without.', e?.message || e);
+  }
+}
 const cmd = `${JSON.stringify(wranglerCmd)} pages dev ./build/client ${bindings} --ip 0.0.0.0 --port ${PORT} --no-show-interactive-dev-session --compatibility-date=2024-01-01`;
 
 const child = spawn(cmd, {
