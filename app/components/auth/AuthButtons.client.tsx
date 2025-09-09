@@ -1,17 +1,9 @@
 import { SignedIn, SignedOut, UserButton } from '@clerk/remix';
 import { useMemo } from 'react';
-import { SIGN_IN_URL } from '~/utils/auth.config';
 
+// Route to in-app sign-in; global Clerk config handles redirects
 function buildSignInUrl() {
-  if (typeof window === 'undefined') {
-    return SIGN_IN_URL;
-  }
-
-  const redirect = `${window.location.origin}/`;
-  const url = new URL(SIGN_IN_URL);
-  url.searchParams.set('redirect_url', redirect);
-
-  return url.toString();
+  return '/sign-in';
 }
 
 export function SignInLinkButton() {
