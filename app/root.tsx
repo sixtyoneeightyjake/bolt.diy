@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react';
-import type { LinksFunction, LoaderFunctionArgs } from '@remix-run/cloudflare';
+import { json, type LinksFunction, type LoaderFunctionArgs } from '@remix-run/cloudflare';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
 import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
@@ -45,7 +45,22 @@ export const links: LinksFunction = () => [
 ];
 
 // Initialize Clerk SSR auth (Cloudflare-compatible)
-export const loader = (args: LoaderFunctionArgs) => rootAuthLoader(args);
+export const loader = async (args: LoaderFunctionArgs) => {
+  const disable = (typeof process !== 'undefined' && process.env?.DISABLE_CLERK_SSR === '1') || false;
+  const hasClerk =
+    typeof process !== 'undefined' && !!process.env?.CLERK_PUBLISHABLE_KEY && !!process.env?.CLERK_SECRET_KEY;
+
+  if (disable || !hasClerk) {
+    return json({ auth: 'disabled' });
+  }
+
+  try {
+    return await rootAuthLoader(args);
+  } catch (e: any) {
+    console.warn('Clerk SSR loader failed; continuing unauthenticated', e?.message ?? e);
+    return json({ auth: 'error' });
+  }
+};
 
 const inlineThemeCode = stripIndents`
   setTutorialKitTheme();

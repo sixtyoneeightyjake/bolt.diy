@@ -100,11 +100,12 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=$(pwd)
-ExecStart=/usr/bin/node server.js
+ExecStart=/usr/bin/env node server.js
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
 Environment=PORT=5173
+Environment=WRANGLER_LOG=info
 
 [Install]
 WantedBy=multi-user.target

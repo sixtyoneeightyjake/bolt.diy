@@ -36,7 +36,10 @@ if (!bindings) {
   }
 }
 
-const cmd = `${JSON.stringify(wranglerCmd)} pages dev ./build/client ${bindings} --ip 0.0.0.0 --port ${PORT} --no-show-interactive-dev-session --compatibility-date=2024-01-01`;
+const cmd = `${JSON.stringify(wranglerCmd)} pages dev ./build/client ${bindings} --ip 0.0.0.0 --port ${PORT} --no-show-interactive-dev-session`;
+
+console.log('Using wrangler binary:', wranglerCmd);
+console.log('Starting command:', cmd);
 
 const child = spawn(cmd, {
   shell: true,
@@ -47,8 +50,12 @@ const child = spawn(cmd, {
   },
 });
 
-child.on('exit', (code) => {
-  console.log(`Server exited with code ${code}`);
+child.on('error', (err) => {
+  console.error('Failed to start wrangler pages dev:', err);
+});
+
+child.on('exit', (code, signal) => {
+  console.log(`Server exited with code ${code} signal ${signal ?? 'none'}`);
   process.exit(code ?? 0);
 });
 
